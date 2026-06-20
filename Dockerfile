@@ -11,4 +11,5 @@ RUN mkdir -p database
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "main.py"]
+RUN chmod +x start.sh
+CMD ["./start.sh"]

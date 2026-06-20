@@ -28,7 +28,7 @@ DB_PATH: str = str(BASE_DIR / os.getenv("DB_PATH", "database/bot.db"))
 
 # WebApp (admin panel) sozlamalari
 WEBAPP_HOST: str = os.getenv("WEBAPP_HOST", "0.0.0.0")
-_raw_port: str = os.getenv("WEBAPP_PORT", "8000")
+_raw_port: str = os.getenv("PORT") or os.getenv("WEBAPP_PORT", "8000")
 try:
     WEBAPP_PORT: int = int(_raw_port)
 except ValueError:
