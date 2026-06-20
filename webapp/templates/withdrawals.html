@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Yechib olish{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <div class="page-eyebrow">// Withdrawal requests</div>
+    <h1 class="page-title">UC yechib olish so'rovlari</h1>
+    <p class="page-desc">Userlar yuborgan yechib olish so'rovlarini ko'rish va bajarildi deb belgilash</p>
+</div>
+
+<div class="flex-between" style="margin-bottom:14px;">
+    <span class="muted mono" style="font-size:11px;">Oxirgi 100 ta so'rov</span>
+    <a href="/export/withdrawals.csv" class="btn btn-sm">⬇️ CSV yuklab olish</a>
+</div>
+
+<div class="panel">
+    <div class="panel-body">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th><th>User ID</th><th>Ism</th><th>PUBG ID</th>
+                    <th>Miqdor</th><th>Status</th><th>Sana</th><th>Amal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for w in withdrawals %}
+                <tr id="row-{{ w.id }}">
+                    <td class="mono">{{ w.id }}</td>
+                    <td class="mono">{{ w.user_id }}</td>
+                    <td>{{ w.full_name or '—' }}{% if w.username %} (@{{ w.username }}){% endif %}</td>
+                    <td class="mono">{{ w.pubg_id or '—' }}</td>
+                    <td class="mono">{{ w.amount }} UC</td>
+                    <td>
+                        {% if w.status == 'pending' %}
+                        <span class="badge muted-badge">⏳ Kutilmoqda</span>
+                        {% else %}
+                        <span class="badge">✅ Bajarildi</span>
+                        {% endif %}
+                    </td>
+                    <td class="mono" style="font-size:11px;">{{ w.created_at }}</td>
+                    <td>
+                        {% if w.status == 'pending' %}
+                        <button class="btn btn-sm btn-primary" onclick="completeWithdrawal({{ w.id }})">✅ Bajarildi</button>
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="empty-state">So'rovlar yo'q</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function completeWithdrawal(id) {
+    const res = await fetch(`/api/withdrawals/${id}/complete`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+        showToast('✅ Bajarildi deb belgilandi');
+        setTimeout(() => location.reload(), 700);
+    } else {
+        showToast('⚠️ Xatolik yuz berdi');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Boshqaruv{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <div class="page-eyebrow">// Real-time overview</div>
+    <h1 class="page-title">Boshqaruv paneli</h1>
+    <p class="page-desc">Botning umumiy holati va asosiy ko'rsatkichlar</p>
+</div>
+
+<div class="stat-grid" id="stat-grid">
+    <div class="stat-card accent">
+        <span class="stat-label">Jami foydalanuvchilar</span>
+        <span class="stat-value" id="stat-total-users">{{ stats.total_users }}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Bugungi yangi</span>
+        <span class="stat-value" id="stat-today-users">{{ stats.today_users }}</span>
+    </div>
+    <div class="stat-card amber">
+        <span class="stat-label">Premium</span>
+        <span class="stat-value" id="stat-premium-users">{{ stats.premium_users }}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Jami referallar</span>
+        <span class="stat-value" id="stat-total-referrals">{{ stats.total_referrals }}</span>
+    </div>
+    <div class="stat-card accent">
+        <span class="stat-label">Tarqatilgan UC</span>
+        <span class="stat-value" id="stat-total-uc">{{ stats.total_uc }}</span>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>🏆 Top 10 reyting</h3>
+    </div>
+    <div class="panel-body">
+        <table>
+            <thead>
+                <tr><th>#</th><th>Foydalanuvchi</th><th>Status</th><th>Balans</th></tr>
+            </thead>
+            <tbody id="top10-body">
+                <tr><td colspan="4" class="empty-state">Yuklanmoqda...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadTop10() {
+    const res = await fetch('/api/stats/top10');
+    const data = await res.json();
+    const tbody = document.getElementById('top10-body');
+    if (!data.top.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Hozircha ma\'lumot yo\'q</td></tr>';
+        return;
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    tbody.innerHTML = data.top.map((u, i) => `
+        <tr>
+            <td class="mono">${i < 3 ? medals[i] : i + 1}</td>
+            <td>${u.full_name || u.username || ('ID ' + u.user_id)}</td>
+            <td>${u.is_premium ? '<span class="badge">Premium</span>' : '<span class="badge muted-badge">Oddiy</span>'}</td>
+            <td class="mono">${u.uc_balance} UC</td>
+        </tr>
+    `).join('');
+}
+loadTop10();
+
+async function refreshStats() {
+    const res = await fetch('/api/stats');
+    const s = await res.json();
+    document.getElementById('stat-total-users').textContent = s.total_users;
+    document.getElementById('stat-today-users').textContent = s.today_users;
+    document.getElementById('stat-premium-users').textContent = s.premium_users;
+    document.getElementById('stat-total-referrals').textContent = s.total_referrals;
+    document.getElementById('stat-total-uc').textContent = s.total_uc;
+}
+setInterval(refreshStats, 15000);
+</script>
+{% endblock %}

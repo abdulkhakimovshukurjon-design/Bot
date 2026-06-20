@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Xabar yuborish{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <div class="page-eyebrow">// Broadcast channel</div>
+    <h1 class="page-title">Barchaga xabar yuborish</h1>
+    <p class="page-desc">Botdagi barcha faol foydalanuvchilarga bir vaqtning o'zida xabar yuboring</p>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h3>✍️ Yangi xabar</h3></div>
+    <div class="panel-body" style="padding: 18px 20px;">
+        <div class="field">
+            <label>Xabar matni</label>
+            <textarea id="broadcast-text" rows="6" placeholder="Xabaringizni shu yerga yozing..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="sendBroadcast()" id="send-btn">📤 Yuborish</button>
+        <span id="send-status" class="muted mono" style="margin-left: 12px; font-size: 12px;"></span>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h3>🗂 Tarix</h3></div>
+    <div class="panel-body">
+        <table>
+            <thead>
+                <tr><th>Sana</th><th>Xabar (preview)</th><th>Yuborildi</th><th>Yuborilmadi</th></tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td class="muted" style="font-size:12px;">{{ log.created_at }}</td>
+                    <td>{{ log.message_preview }}</td>
+                    <td class="mono" style="color: var(--acid);">{{ log.sent_count }}</td>
+                    <td class="mono" style="color: var(--danger);">{{ log.failed_count }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4" class="empty-state">Hozircha xabar yuborilmagan</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function sendBroadcast() {
+    const text = document.getElementById('broadcast-text').value.trim();
+    if (!text) { showToast('⚠️ Xabar matnini kiriting'); return; }
+    if (!confirm('Xabarni barcha foydalanuvchilarga yuborishni tasdiqlaysizmi?')) return;
+
+    const btn = document.getElementById('send-btn');
+    const status = document.getElementById('send-status');
+    btn.disabled = true;
+    status.textContent = '📤 Yuborilmoqda, biroz kutib turing...';
+
+    try {
+        const res = await fetch('/api/broadcast/send', {
+            method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `message=${encodeURIComponent(text)}`
+        });
+        const data = await res.json();
+        status.textContent = `✅ Yuborildi: ${data.sent} | ❌ Yuborilmadi: ${data.failed}`;
+        setTimeout(() => location.reload(), 1500);
+    } catch (e) {
+        status.textContent = '❌ Xatolik yuz berdi';
+    } finally {
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

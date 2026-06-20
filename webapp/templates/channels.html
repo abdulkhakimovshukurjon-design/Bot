@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Kanallar{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <div class="page-eyebrow">// Mandatory subscription</div>
+    <h1 class="page-title">Majburiy obuna kanallari</h1>
+    <p class="page-desc">Bot foydalanuvchilari obuna bo'lishi shart bo'lgan kanallar ro'yxati</p>
+</div>
+
+<div class="panel">
+    <div class="panel-head"><h3>➕ Yangi kanal qo'shish</h3></div>
+    <div class="panel-body" style="padding: 18px 20px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+            <div class="field" style="margin-bottom:0;">
+                <label>Username</label>
+                <input type="text" id="add-username" placeholder="@FreeUC_Uz">
+            </div>
+            <div class="field" style="margin-bottom:0;">
+                <label>Nomi (ixtiyoriy)</label>
+                <input type="text" id="add-title" placeholder="Free UC kanali">
+            </div>
+            <button class="btn btn-primary" onclick="addChannel()" style="height:42px;">Qo'shish</button>
+        </div>
+        <p class="muted" style="font-size:12px; margin-top:10px;">
+            ⚠️ Faqat username kifoya — Chat ID bot tomonidan avtomatik aniqlanadi. Bot kanalga administrator qilib qo'shilgan bo'lishi shart, aks holda kanal qo'shilmaydi.
+        </p>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>📋 Faol kanallar ({{ channels|length }})</h3>
+    </div>
+    <div class="panel-body">
+        <table>
+            <thead>
+                <tr><th>Nomi</th><th>Username</th><th>Chat ID</th><th>Qo'shilgan</th><th></th></tr>
+            </thead>
+            <tbody id="channels-body">
+                {% for ch in channels %}
+                <tr id="row-{{ ch.channel_id }}">
+                    <td>{{ ch.title or '—' }}</td>
+                    <td class="mono">{{ ch.username }}</td>
+                    <td class="mono muted">{{ ch.chat_id }}</td>
+                    <td class="muted" style="font-size:12px;">{{ ch.added_at }}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="deleteChannel({{ ch.channel_id }})">O'chirish</button></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="empty-state">Hozircha kanallar qo'shilmagan</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function addChannel() {
+    const username = document.getElementById('add-username').value.trim();
+    const title = document.getElementById('add-title').value.trim();
+
+    if (!username) {
+        showToast('⚠️ Username majburiy');
+        return;
+    }
+
+    const res = await fetch('/api/channels/add', {
+        method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `username=${encodeURIComponent(username)}&title=${encodeURIComponent(title)}`
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast('✅ Kanal qo\'shildi');
+        setTimeout(() => location.reload(), 600);
+    } else {
+        showToast('⚠️ ' + (data.error || 'Kanal qo\'shilmadi'));
+    }
+}
+
+async function deleteChannel(id) {
+    if (!confirm('Kanalni o\'chirishni tasdiqlaysizmi?')) return;
+    await fetch(`/api/channels/${id}/delete`, { method: 'POST' });
+    document.getElementById(`row-${id}`).remove();
+    showToast('✅ Kanal o\'chirildi');
+}
+</script>
+{% endblock %}

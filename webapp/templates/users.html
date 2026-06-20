@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Foydalanuvchilar{% endblock %}
+{% block content %}
+
+<div class="page-head">
+    <div class="page-eyebrow">// User registry</div>
+    <h1 class="page-title">Foydalanuvchilar</h1>
+    <p class="page-desc">Qidirish, balansni boshqarish, Premium berish va ban qilish</p>
+</div>
+
+<div class="search-row">
+    <input type="text" id="search-input" placeholder="User ID yoki @username bo'yicha qidirish...">
+    <button class="btn btn-primary" onclick="searchUser()">Qidirish</button>
+    <a href="/export/users.csv" class="btn btn-sm">⬇️ CSV</a>
+</div>
+
+<div id="search-result"></div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h3>So'nggi qo'shilganlar</h3>
+        <span class="muted mono" style="font-size:11px;">Sahifa {{ page }}</span>
+    </div>
+    <div class="panel-body">
+        <table>
+            <thead>
+                <tr>
+                    <th>User ID</th><th>Ism</th><th>PUBG ID</th><th>Balans</th>
+                    <th>Referal</th><th>Status</th><th>Amallar</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td class="mono">{{ u.user_id }}</td>
+                    <td>{{ u.full_name or '—' }}{% if u.is_banned %} <span class="badge danger-badge">BAN</span>{% endif %}</td>
+                    <td class="mono">{{ u.pubg_id or '—' }}</td>
+                    <td class="mono">{{ u.uc_balance }} UC</td>
+                    <td class="mono">{{ u.referral_count }}</td>
+                    <td>
+                        {% if u.is_premium_now %}<span class="badge">Premium</span>{% else %}<span class="badge muted-badge">Oddiy</span>{% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm" onclick="openManage({{ u.user_id }}, '{{ u.full_name or '' }}')">Boshqarish</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="empty-state">Foydalanuvchilar topilmadi</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="flex-between">
+    <a href="/users?page={{ page - 1 if page > 1 else 1 }}" class="btn btn-sm">← Oldingi</a>
+    <a href="/users?page={{ page + 1 }}" class="btn btn-sm">Keyingi →</a>
+</div>
+
+<div id="manage-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:1000;">
+    <div class="panel" style="width:380px; margin:0;">
+        <div class="panel-head">
+            <h3 id="modal-title">Boshqarish</h3>
+            <button class="btn btn-sm" onclick="closeManage()">✕</button>
+        </div>
+        <div class="panel-body" style="padding:18px 20px;">
+            <div class="field">
+                <label>💰 UC qo'shish</label>
+                <input type="number" id="balance-add" placeholder="masalan: 50" value="0">
+                <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="addBalance()">+ Qo'shish</button>
+            </div>
+            <div class="field">
+                <label>➖ UC ayirish</label>
+                <input type="number" id="balance-sub" placeholder="masalan: 20" value="0">
+                <button class="btn btn-danger" style="width:100%; margin-top:8px;" onclick="subBalance()">− Ayirish</button>
+            </div>
+            <div class="field">
+                <label>💬 Xabar yuborish</label>
+                <textarea id="user-message" rows="2" placeholder="Userga xabar matni..."></textarea>
+                <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="sendUserMessage()">Yuborish</button>
+            </div>
+            <div class="field">
+                <label>💎 Premium berish</label>
+                <select id="premium-months">
+                    <option value="1">1 oy — 9 900 so'm</option>
+                    <option value="3">3 oy — 24 900 so'm</option>
+                    <option value="6">6 oy — 44 900 so'm</option>
+                    <option value="12">12 oy — 79 900 so'm</option>
+                </select>
+                <button class="btn btn-primary" style="width:100%; margin-top:8px;" onclick="grantPremium()">Premium berish</button>
+            </div>
+            <div class="field">
+                <button class="btn btn-danger" style="width:100%;" id="ban-btn" onclick="toggleBan()">Ban qilish</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentUserId = null;
+
+function openManage(userId, name) {
+    currentUserId = userId;
+    document.getElementById('modal-title').textContent = `Boshqarish — ${name || userId}`;
+    document.getElementById('manage-modal').style.display = 'flex';
+}
+function closeManage() {
+    document.getElementById('manage-modal').style.display = 'none';
+}
+
+async function addBalance() {
+    const amount = document.getElementById('balance-add').value;
+    if (!amount || parseInt(amount) === 0) return;
+    await fetch(`/api/users/${currentUserId}/balance`, {
+        method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `amount=${amount}`
+    });
+    showToast('✅ UC qo\'shildi');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function subBalance() {
+    const amount = document.getElementById('balance-sub').value;
+    if (!amount || parseInt(amount) === 0) return;
+    await fetch(`/api/users/${currentUserId}/balance`, {
+        method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `amount=-${amount}`
+    });
+    showToast('✅ UC ayirildi');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function sendUserMessage() {
+    const text = document.getElementById('user-message').value.trim();
+    if (!text) { showToast('⚠️ Xabar matnini kiriting'); return; }
+    await fetch(`/api/users/${currentUserId}/message`, {
+        method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `text=${encodeURIComponent(text)}`
+    });
+    showToast('✅ Xabar yuborildi');
+    document.getElementById('user-message').value = '';
+}
+
+async function grantPremium() {
+    const months = document.getElementById('premium-months').value;
+    await fetch(`/api/users/${currentUserId}/premium`, {
+        method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: `months=${months}`
+    });
+    showToast('✅ Premium berildi');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function toggleBan() {
+    await fetch(`/api/users/${currentUserId}/ban`, { method: 'POST' });
+    showToast('✅ Bajarildi');
+    setTimeout(() => location.reload(), 800);
+}
+
+async function searchUser() {
+    const q = document.getElementById('search-input').value.trim();
+    if (!q) return;
+    const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+    const data = await res.json();
+    const container = document.getElementById('search-result');
+
+    if (!data.found) {
+        container.innerHTML = '<div class="panel"><div class="empty-state">Foydalanuvchi topilmadi</div></div>';
+        return;
+    }
+    const u = data.user;
+    container.innerHTML = `
+        <div class="panel">
+            <div class="panel-head"><h3>Qidiruv natijasi</h3></div>
+            <div class="panel-body" style="padding:18px 20px; font-size:13px;">
+                <p><span class="muted">User ID:</span> <span class="mono">${u.user_id}</span></p>
+                <p><span class="muted">Ism:</span> ${u.full_name || '—'}</p>
+                <p><span class="muted">PUBG ID:</span> <span class="mono">${u.pubg_id || '—'}</span></p>
+                <p><span class="muted">Balans:</span> <span class="mono">${u.uc_balance} UC</span></p>
+                <p><span class="muted">Referallar:</span> ${u.referral_count}</p>
+                <p><span class="muted">Status:</span> ${u.is_premium_now ? '<span class="badge">Premium</span>' : '<span class="badge muted-badge">Oddiy</span>'}</p>
+                <button class="btn btn-primary" onclick="openManage(${u.user_id}, '${u.full_name || ''}')">Boshqarish</button>
+            </div>
+        </div>
+    `;
+}
+
+document.getElementById('search-input').addEventListener('keypress', e => {
+    if (e.key === 'Enter') searchUser();
+});
+</script>
+{% endblock %}

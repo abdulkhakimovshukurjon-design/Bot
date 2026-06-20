@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}Free UC Bot{% endblock %} — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<div class="shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">UC</div>
+            <div class="brand-text">
+                <span class="brand-title">Free UC</span>
+                <span class="brand-sub">command deck</span>
+            </div>
+        </div>
+
+        <nav class="nav">
+            <a href="/" class="nav-link {% if active_page == 'dashboard' %}active{% endif %}">
+                <span class="nav-index">01</span> Boshqaruv
+            </a>
+            <a href="/users" class="nav-link {% if active_page == 'users' %}active{% endif %}">
+                <span class="nav-index">02</span> Foydalanuvchilar
+            </a>
+            <a href="/channels" class="nav-link {% if active_page == 'channels' %}active{% endif %}">
+                <span class="nav-index">03</span> Kanallar
+            </a>
+            <a href="/broadcast" class="nav-link {% if active_page == 'broadcast' %}active{% endif %}">
+                <span class="nav-index">04</span> Xabar yuborish
+            </a>
+            <a href="/withdrawals" class="nav-link {% if active_page == 'withdrawals' %}active{% endif %}">
+                <span class="nav-index">05</span> Yechib olish
+            </a>
+        </nav>
+
+        <a href="/logout" class="logout-link">Chiqish →</a>
+    </aside>
+
+    <main class="main">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+<script src="/static/js/main.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

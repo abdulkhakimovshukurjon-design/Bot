@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: freeuc-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - db_data:/app/database
+      - ./bot.log:/app/bot.log
+
+  webapp:
+    build:
+      context: .
+      dockerfile: Dockerfile.webapp
+    container_name: freeuc-webapp
+    restart: unless-stopped
+    ports:
+      - "5000:8000"
+    env_file:
+      - .env
+    volumes:
+      - db_data:/app/database
+
+volumes:
+  db_data:
