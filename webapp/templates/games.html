@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎮 O'yinlar</title>
+<script src="https://telegram.org/js/telegram-webapp.js"></script>
+<link rel="stylesheet" href="/static/css/games.css">
+</head>
+<body>
+<div id="app">
+  <div id="lobby">
+    <h1>🎮 O'yinlar</h1>
+    <p id="balance-info">💰 Balans: <span id="balance">0</span> UC</p>
+    <div class="games-grid">
+      <div class="game-card" data-game="baraban">
+        <div class="game-icon">🎰</div>
+        <div class="game-name">Baraban</div>
+        <div class="game-desc">0x – 20x gacha</div>
+      </div>
+      <div class="game-card" data-game="plinko">
+        <div class="game-icon">🧩</div>
+        <div class="game-name">Plinko</div>
+        <div class="game-desc">0.2x – 10x gacha</div>
+      </div>
+      <div class="game-card" data-game="upgrade">
+        <div class="game-icon">⬆️</div>
+        <div class="game-name">Upgrade</div>
+        <div class="game-desc">Darajani oshirish</div>
+      </div>
+      <div class="game-card" data-game="dice">
+        <div class="game-icon">🎲</div>
+        <div class="game-name">Dice</div>
+        <div class="game-desc">1-6, x6 to'lov</div>
+      </div>
+      <div class="game-card" data-game="battle">
+        <div class="game-icon">⚔️</div>
+        <div class="game-name">UC Battle</div>
+        <div class="game-desc">PvP jang</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-screen" style="display:none;">
+    <button class="back-btn" id="back-to-lobby">⬅️</button>
+    <div id="game-content"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script src="/static/js/games.js"></script>
+</body>
+</html>

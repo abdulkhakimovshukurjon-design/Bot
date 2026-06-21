@@ -501,6 +501,404 @@ async def api_chart():
     return JSONResponse({"labels": labels, "data": data})
 
 
+# ---------------------------------------------------------------------------
+# Games (Telegram WebApp)
+# ---------------------------------------------------------------------------
+import hashlib
+import hmac
+import random
+from urllib.parse import parse_qs
+
+_GAMES_DATA: dict = {"upgrade_levels": {}, "battles": {}}
+
+BARABAN_MULTIPLIERS = [0, 0.5, 1, 1.5, 2, 3, 5, 10, 20]
+BARABAN_WEIGHTS = [40, 20, 15, 10, 7, 4, 2, 1, 1]
+
+PLINKO_MULTIPLIERS = [0.2, 0.5, 1, 2, 3, 5, 10, 5, 3, 2, 1, 0.5, 0.2]
+
+
+def _parse_webapp_init(init_data: str) -> dict | None:
+    """Validate Telegram WebApp init data and return parsed params."""
+    try:
+        parsed = parse_qs(init_data)
+        params = {k: v[0] for k, v in parsed.items()}
+        received_hash = params.pop("hash", None)
+        if not received_hash:
+            return None
+
+        secret_key = hmac.new(
+            b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256
+        ).digest()
+
+        check_items = sorted(
+            [f"{k}={v}" for k, v in params.items()],
+            key=lambda x: x.lower(),
+        )
+        data_check_string = "\n".join(check_items)
+
+        computed_hash = hmac.new(
+            secret_key, data_check_string.encode(), hashlib.sha256
+        ).hexdigest()
+
+        if computed_hash != received_hash:
+            return None
+        return params
+    except Exception:
+        return None
+
+
+@app.post("/api/games/init")
+async def api_games_init(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    if not init_data:
+        return JSONResponse({"ok": False, "error": "initData yo'q"})
+
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+
+    try:
+        user_info = json.loads(params.get("user", "{}"))
+        user_id = user_info.get("id")
+        if not user_id:
+            return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user ma'lumotlarini o'qib bo'lmadi"})
+
+    user = await users_db.get_user(user_id)
+    if not user:
+        return JSONResponse({"ok": False, "error": "Foydalanuvchi topilmadi"})
+
+    return JSONResponse({
+        "ok": True,
+        "user": {"id": user_id, "full_name": user.get("full_name")},
+        "balance": user.get("uc_balance", 0),
+    })
+
+
+@app.get("/games", response_class=HTMLResponse)
+async def games_page(request: Request):
+    return render_template("games.html", request=request)
+
+
+@app.post("/api/games/baraban/play")
+async def api_baraban_play(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    amount = data.get("amount", 0)
+    if amount <= 0:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri miqdor"})
+
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < amount:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -amount, reason="game_baraban")
+    mult = random.choices(BARABAN_MULTIPLIERS, weights=BARABAN_WEIGHTS, k=1)[0]
+    win = int(amount * mult)
+
+    segments = ["0️⃣", "½️⃣", "1️⃣", "1.5️⃣", "2️⃣", "3️⃣", "5️⃣", "🔟", "2️⃣0️⃣"]
+    idx = BARABAN_MULTIPLIERS.index(mult)
+    wheel = " ".join(segments[:idx]) + f" ▶️{segments[idx]}◀️ " + " ".join(segments[idx+1:])
+
+    msg = ""
+    if win > 0:
+        await users_db.add_balance(user_id, win)
+        msg = f"🎉 Yutdingiz! +{win} UC (x{mult})"
+    else:
+        msg = f"😔 {amount} UC yo'qotildi"
+
+    new_bal = await users_db.get_user(user_id)
+    bal = new_bal["uc_balance"] if new_bal else 0
+
+    return JSONResponse({
+        "ok": True, "game": "baraban",
+        "win": win, "amount": amount, "multiplier": mult,
+        "wheel": wheel, "balance": bal,
+    })
+
+
+@app.post("/api/games/plinko/play")
+async def api_plinko_play(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    amount = data.get("amount", 0)
+    if amount <= 0:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri miqdor"})
+
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < amount:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -amount, reason="game_plinko")
+    plinko_range = len(PLINKO_MULTIPLIERS)
+    idx = random.randrange(plinko_range)
+    mult = PLINKO_MULTIPLIERS[idx]
+    win = int(amount * mult)
+
+    rows = 8
+    lines = []
+    col = idx
+    for _ in range(rows):
+        line = ["⬜"] * plinko_range
+        if 0 <= col < plinko_range:
+            line[col] = "🔴"
+        lines.append("".join(line))
+        col += random.choice([-1, 0, 1])
+        col = max(0, min(plinko_range - 1, col))
+
+    lines.append("━" * plinko_range)
+    m = [f"{x}x" if x < 10 else f"{int(x)}x" for x in PLINKO_MULTIPLIERS]
+    lines.append("".join(f"{v:>3}" for v in m))
+    board = "\n".join(lines)
+
+    if win > 0:
+        await users_db.add_balance(user_id, win)
+
+    new_bal = await users_db.get_user(user_id)
+    bal = new_bal["uc_balance"] if new_bal else 0
+
+    return JSONResponse({
+        "ok": True, "game": "plinko",
+        "win": win, "amount": amount, "multiplier": mult,
+        "board": board, "balance": bal,
+    })
+
+
+@app.post("/api/games/upgrade/status")
+async def api_upgrade_status(data: dict | None = None):
+    import json
+
+    init_data = (data or {}).get("initData", "")
+    params = _parse_webapp_init(init_data) if init_data else None
+    if not params:
+        return JSONResponse({"ok": False, "error": "initData yo'q"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    level = _GAMES_DATA.setdefault(user_id, {}).get("upgrade_level", 0)
+    cost = 50 + level * 75
+    chance = max(5, 90 - level * 8)
+    return JSONResponse({"ok": True, "level": level, "cost": cost, "chance": chance})
+
+
+@app.post("/api/games/upgrade/play")
+async def api_upgrade_play(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    _GAMES_DATA.setdefault(user_id, {})
+    level = _GAMES_DATA[user_id].get("upgrade_level", 0)
+    cost = 50 + level * 75
+
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < cost:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -cost, reason="game_upgrade")
+    chance = max(5, 90 - level * 8)
+    success = random.randint(1, 100) <= chance
+
+    if success:
+        new_level = level + 1
+        _GAMES_DATA[user_id]["upgrade_level"] = new_level
+        await users_db.add_balance(user_id, cost * 2)
+        new_bal = await users_db.get_user(user_id)
+        bal = new_bal["uc_balance"] if new_bal else 0
+        return JSONResponse({
+            "ok": True, "game": "upgrade",
+            "win": cost * 2, "amount": cost, "multiplier": 2,
+            "level": new_level, "balance": bal,
+        })
+    else:
+        _GAMES_DATA[user_id]["upgrade_level"] = 0
+        new_bal = await users_db.get_user(user_id)
+        bal = new_bal["uc_balance"] if new_bal else 0
+        return JSONResponse({
+            "ok": True, "game": "upgrade",
+            "win": 0, "amount": cost, "multiplier": 0,
+            "level": 0, "balance": bal,
+        })
+
+
+@app.post("/api/games/dice/play")
+async def api_dice_play(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    amount = data.get("amount", 0)
+    chosen = data.get("number", 0)
+
+    if amount <= 0 or chosen < 1 or chosen > 6:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri ma'lumot"})
+
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < amount:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -amount, reason="game_dice")
+    result = random.randint(1, 6)
+    dice_faces = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
+
+    if result == chosen:
+        win = amount * 6
+        await users_db.add_balance(user_id, win)
+    else:
+        win = 0
+
+    new_bal = await users_db.get_user(user_id)
+    bal = new_bal["uc_balance"] if new_bal else 0
+
+    return JSONResponse({
+        "ok": True, "game": "dice",
+        "win": win, "amount": amount, "multiplier": 6 if win > 0 else 0,
+        "result": result, "chosen": chosen,
+        "dice_face": dice_faces[result], "balance": bal,
+    })
+
+
+@app.post("/api/games/battle_create/play")
+async def api_battle_create(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    amount = data.get("amount", 0)
+    if amount <= 0:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri miqdor"})
+
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < amount:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -amount, reason="game_battle")
+    import time
+    battle_id = int(time.time() * 1000) % 1000000
+    _GAMES_DATA["battles"][battle_id] = {
+        "creator_id": user_id,
+        "amount": amount,
+    }
+
+    return JSONResponse({
+        "ok": True, "battle_id": battle_id, "amount": amount,
+    })
+
+
+@app.post("/api/games/battle_list/play")
+async def api_battle_list(data: dict):
+    active = []
+    for bid, b in list(_GAMES_DATA["battles"].items()):
+        creator = await users_db.get_user(b["creator_id"])
+        active.append({
+            "id": bid,
+            "creator_id": b["creator_id"],
+            "creator_name": creator.get("full_name") if creator else str(b["creator_id"]),
+            "amount": b["amount"],
+        })
+    return JSONResponse({"ok": True, "battles": active})
+
+
+@app.post("/api/games/battle_join/play")
+async def api_battle_join(data: dict):
+    import json
+
+    init_data = data.get("initData", "")
+    params = _parse_webapp_init(init_data)
+    if not params:
+        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    try:
+        user_id = json.loads(params["user"])["id"]
+    except Exception:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
+
+    battle_id = data.get("battle_id")
+    if battle_id not in _GAMES_DATA["battles"]:
+        return JSONResponse({"ok": False, "error": "Battle topilmadi"})
+
+    battle = _GAMES_DATA["battles"][battle_id]
+    creator_id = battle["creator_id"]
+    if user_id == creator_id:
+        return JSONResponse({"ok": False, "error": "O'zingiz bilan jang qila olmaysiz"})
+
+    amount = battle["amount"]
+    user = await users_db.get_user(user_id)
+    if not user or user["uc_balance"] < amount:
+        return JSONResponse({"ok": False, "error": "Balans yetarli emas"})
+
+    await users_db.admin_adjust_balance(user_id, -amount, reason="game_battle")
+
+    total = amount * 2
+    p1_chance = (amount / total) * 100
+    winner = random.choices(
+        [creator_id, user_id],
+        weights=[p1_chance, 100 - p1_chance],
+        k=1
+    )[0]
+
+    if winner == creator_id:
+        await users_db.add_balance(creator_id, total)
+    else:
+        await users_db.add_balance(user_id, total)
+
+    del _GAMES_DATA["battles"][battle_id]
+
+    new_bal = await users_db.get_user(user_id)
+    bal = new_bal["uc_balance"] if new_bal else 0
+
+    return JSONResponse({
+        "ok": True, "game": "battle",
+        "win": total if winner == user_id else 0,
+        "amount": amount, "multiplier": 2,
+        "winner_id": winner, "total": total,
+        "balance": bal,
+    })
+
+
 if __name__ == "__main__":
     import uvicorn
 

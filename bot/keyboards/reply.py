@@ -1,7 +1,9 @@
 """
 Reply (pastki) klaviaturalar.
 """
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, WebAppInfo
+
+import config
 
 
 def main_menu_kb() -> ReplyKeyboardMarkup:
@@ -11,11 +13,10 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="🏆 Top 10"), KeyboardButton(text="🎁 Bonus")],
             [KeyboardButton(text="💎 Premium"), KeyboardButton(text="ℹ️ Axborot olish")],
             [KeyboardButton(text="💸 UC yechib olish"), KeyboardButton(text="📜 UC tarixi")],
-            [KeyboardButton(text="🎮 O'yinlar")],
+            [KeyboardButton(text="🎮 O'yinlar", web_app=WebAppInfo(url=f"{config.WEBAPP_URL}/games"))],
         ],
         resize_keyboard=True,
     )
-
 
 def games_menu_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(

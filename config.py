@@ -36,6 +36,7 @@ except ValueError:
 WEBAPP_SECRET_KEY: str = os.getenv("WEBAPP_SECRET_KEY", "dev_secret_key")
 WEBAPP_ADMIN_USERNAME: str = os.getenv("WEBAPP_ADMIN_USERNAME", "admin")
 WEBAPP_ADMIN_PASSWORD: str = os.getenv("WEBAPP_ADMIN_PASSWORD", "admin123")
+WEBAPP_URL: str = os.getenv("WEBAPP_URL", f"https://{os.getenv('RAILWAY_PUBLIC_DOMAIN', 'localhost:5000')}")
 
 # Biznes-logika konstantalari
 REFERRAL_BONUS_NORMAL: int = 15
