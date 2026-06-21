@@ -14,8 +14,17 @@
         <form id="broadcast-form">
             <div class="field">
                 <label>Rasm yuklash (ixtiyoriy)</label>
-                <input type="file" id="broadcast-photo-file" accept="image/*">
-                <span class="muted" style="font-size:11px;" id="file-name"></span>
+                <div id="drop-zone" style="border:2px dashed var(--border); border-radius:8px; padding:24px; text-align:center; cursor:pointer; transition:all .2s; background:var(--surface);">
+                    <div id="drop-content">
+                        <div style="font-size:32px; margin-bottom:8px;">📁</div>
+                        <div style="font-size:13px; color:var(--muted);">Rasmni shu yerga tashlang yoki <span style="color:var(--acid); text-decoration:underline;">tanlang</span></div>
+                    </div>
+                    <div id="drop-preview" style="display:none;">
+                        <img id="drop-img" style="max-height:120px; border-radius:6px; margin-bottom:8px;">
+                        <div style="font-size:12px; color:var(--muted);" id="drop-filename"></div>
+                    </div>
+                    <input type="file" id="broadcast-photo-file" accept="image/*" style="display:none;">
+                </div>
             </div>
             <div class="field">
                 <label>Xabar matni</label>
@@ -58,15 +67,56 @@
 
 {% block scripts %}
 <script>
-document.getElementById('broadcast-photo-file').addEventListener('change', function() {
-    const name = this.files[0] ? this.files[0].name : '';
-    document.getElementById('file-name').textContent = name;
+let droppedFile = null;
+const dropZone = document.getElementById('drop-zone');
+const dropContent = document.getElementById('drop-content');
+const dropPreview = document.getElementById('drop-preview');
+const dropImg = document.getElementById('drop-img');
+const dropFilename = document.getElementById('drop-filename');
+const fileInput = document.getElementById('broadcast-photo-file');
+
+['dragenter', 'dragover'].forEach(evt => {
+    dropZone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--acid)';
+        dropZone.style.background = 'rgba(132,255,97,0.06)';
+    });
 });
+['dragleave', 'drop'].forEach(evt => {
+    dropZone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropZone.style.borderColor = 'var(--border)';
+        dropZone.style.background = 'var(--surface)';
+    });
+});
+dropZone.addEventListener('drop', e => {
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+        droppedFile = file;
+        showPreview(file);
+    }
+});
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) {
+        droppedFile = fileInput.files[0];
+        showPreview(droppedFile);
+    }
+});
+
+function showPreview(file) {
+    dropContent.style.display = 'none';
+    dropPreview.style.display = 'block';
+    dropFilename.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => dropImg.src = e.target.result;
+    reader.readAsDataURL(file);
+}
 
 async function sendBroadcast() {
     const text = document.getElementById('broadcast-text').value.trim();
     const fileInput = document.getElementById('broadcast-photo-file');
-    const file = fileInput.files[0];
+    const file = droppedFile || fileInput.files[0];
     if (!text && !file) { showToast('⚠️ Xabar matni yoki rasm tanlang'); return; }
     if (!confirm('Xabarni barcha foydalanuvchilarga yuborishni tasdiqlaysizmi?')) return;
 
@@ -78,7 +128,11 @@ async function sendBroadcast() {
     try {
         const formData = new FormData();
         if (text) formData.set('message', text);
-        if (file) formData.set('photo', file);
+        if (file) {
+            formData.set('photo', file, file.name || 'photo.jpg');
+        } else if (fileInput.files[0]) {
+            formData.set('photo', fileInput.files[0]);
+        }
         formData.set('send_to_channels', document.getElementById('broadcast-channels').checked ? '1' : '0');
         const res = await fetch('/api/broadcast/send', {
             method: 'POST',
