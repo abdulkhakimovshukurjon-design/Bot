@@ -5,6 +5,7 @@ from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 
+import config
 from bot.database import users as users_db
 from bot.keyboards.inline import edit_pubg_id_kb
 from bot.keyboards.reply import cancel_kb, main_menu_kb
@@ -32,7 +33,9 @@ async def show_profile(message: Message) -> None:
         f"🎮 PUBG Nickname: {user['pubg_nickname']}\n"
         f"💰 UC Balansi: {user['uc_balance']} UC\n"
         f"👥 Referallar soni: {referral_count}\n"
-        f"💎 Status: {status}"
+        f"💎 Status: {status}\n\n"
+        f"🔑 Telegram ID: <code>{message.from_user.id}</code>\n"
+        f"🌐 <i>WebApp ga kirish uchun ID dan foydalaning: {config.WEBAPP_URL}/games?user_id={message.from_user.id}</i>"
     )
     await message.answer(text, reply_markup=edit_pubg_id_kb())
 
