@@ -506,8 +506,10 @@ async def api_chart():
 # ---------------------------------------------------------------------------
 import hashlib
 import hmac
+import json
 import random
-from urllib.parse import parse_qs
+import time
+from urllib.parse import unquote
 
 _GAMES_DATA: dict = {"upgrade_levels": {}, "battles": {}}
 
@@ -518,31 +520,32 @@ PLINKO_MULTIPLIERS = [0.2, 0.5, 1, 2, 3, 5, 10, 5, 3, 2, 1, 0.5, 0.2]
 
 
 def _parse_webapp_init(init_data: str) -> dict | None:
-    """Validate Telegram WebApp init data and return parsed params."""
+    """Validate Telegram WebApp init data and return decoded params."""
     try:
-        parsed = parse_qs(init_data)
-        params = {k: v[0] for k, v in parsed.items()}
-        received_hash = params.pop("hash", None)
+        raw = {}
+        for item in init_data.split("&"):
+            item = item.strip()
+            if not item or "=" not in item:
+                continue
+            key, raw_value = item.split("=", 1)
+            key = unquote(key)
+            raw[key] = raw_value
+
+        received_hash = raw.pop("hash", None)
         if not received_hash:
             return None
 
-        secret_key = hmac.new(
-            b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256
-        ).digest()
+        secret_key = hmac.new(b"WebAppData", config.BOT_TOKEN.encode(), hashlib.sha256).digest()
 
-        check_items = sorted(
-            [f"{k}={v}" for k, v in params.items()],
-            key=lambda x: x.lower(),
-        )
-        data_check_string = "\n".join(check_items)
+        sorted_items = sorted(raw.items(), key=lambda x: x[0])
+        data_check_string = "\n".join(f"{k}={v}" for k, v in sorted_items)
 
-        computed_hash = hmac.new(
-            secret_key, data_check_string.encode(), hashlib.sha256
-        ).hexdigest()
+        computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         if computed_hash != received_hash:
             return None
-        return params
+
+        return {k: unquote(v) for k, v in raw.items()}
     except Exception:
         return None
 
