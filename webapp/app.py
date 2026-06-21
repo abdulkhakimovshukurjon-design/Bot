@@ -35,8 +35,20 @@ def render_template(name: str, status_code: int = 200, **context) -> HTMLRespons
     html = template.render(**context)
     return HTMLResponse(content=html, status_code=status_code)
 
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+logger = logging.getLogger("webapp")
+
 app = FastAPI(title="Free UC Bot - Admin Panel")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+@app.exception_handler(Exception)
+async def catch_all_exceptions(request: Request, exc: Exception):
+    import traceback
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    logger.error("Unhandled error on %s %s\n%s", request.method, request.url.path, tb)
+    return JSONResponse({"detail": "Internal error"}, status_code=500)
 
 serializer = URLSafeSerializer(config.WEBAPP_SECRET_KEY, salt="admin-session")
 SESSION_COOKIE = "admin_session"
