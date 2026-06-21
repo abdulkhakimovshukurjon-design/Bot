@@ -24,6 +24,7 @@ from bot.handlers import (
     admin_search_user,
     admin_withdrawals,
     features,
+    games,
     profile,
     start,
     withdraw,
@@ -81,6 +82,7 @@ async def main() -> None:
     dp.include_router(profile.router)
     dp.include_router(features.router)
     dp.include_router(withdraw.router)
+    dp.include_router(games.router)
 
     await bot.delete_webhook(drop_pending_updates=True)
 
