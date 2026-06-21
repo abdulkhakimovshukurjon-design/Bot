@@ -230,10 +230,6 @@ async def grant_premium(user_id: int, months: int, granted_by: int | None = None
     conn = await get_connection()
     user = await get_user(user_id)
 
-    if not user:
-        await create_user(user_id, None)
-        user = await get_user(user_id)
-
     now = datetime.now()
     if user and user["is_premium"] and user["premium_until"]:
         current_expiry = datetime.fromisoformat(user["premium_until"])

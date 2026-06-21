@@ -2,9 +2,7 @@
 SQLite va PostgreSQL ikkalasini ham qo'llaydigan ulanish moduli.
 DATABASE_URL muhit o'zgaruvchisi bo'lsa — PostgreSQL, aks holda — SQLite.
 """
-import asyncio
 import logging
-import os
 import re
 from pathlib import Path
 
@@ -115,49 +113,21 @@ async def get_connection():
     global _connection, _is_postgres
     if _connection is None:
         raise RuntimeError("Database ulanishi ishga tushirilmagan. init_db() ni chaqiring.")
-    if _is_postgres:
-        try:
-            await _connection._c.fetch("SELECT 1")
-        except Exception:
-            logger.warning("PostgreSQL ulanishi uzilgan, qayta ulanmoqda...")
-            try:
-                await _connection._c.close()
-            except Exception:
-                pass
-            database_url = os.getenv("DATABASE_URL") or os.getenv("DATABASE_PUBLIC_URL")
-            if database_url:
-                import asyncpg
-                try:
-                    pg_conn = await asyncpg.connect(database_url, timeout=10)
-                    _connection = _PgWrapper(pg_conn)
-                    logger.info("PostgreSQL ga qayta ulandi")
-                except Exception as e:
-                    logger.error("PostgreSQL ga qayta ulanishda xatolik: %s", str(e)[:100])
     return _connection
 
 
 async def init_db(db_path: str = None) -> None:
     global _connection, _is_postgres
 
+    import os
     database_url = os.getenv("DATABASE_URL") or os.getenv("DATABASE_PUBLIC_URL")
 
     if database_url:
         _is_postgres = True
         import asyncpg
-        last_error = None
-        for attempt in range(5):
-            try:
-                pg_conn = await asyncpg.connect(database_url, timeout=10)
-                _connection = _PgWrapper(pg_conn)
-                logger.info("PostgreSQL ga ulandi (%d-urinish): %s", attempt + 1, database_url.split("@")[-1] if "@" in database_url else database_url)
-                break
-            except Exception as e:
-                last_error = e
-                logger.warning("PostgreSQL ga ulanishda xatolik (urinish %d/5): %s", attempt + 1, str(e)[:80])
-                if attempt < 4:
-                    await asyncio.sleep(2 ** attempt)
-        else:
-            raise last_error or RuntimeError("PostgreSQL ga 5 marta ulanish muvaffaqiyatsiz")
+        pg_conn = await asyncpg.connect(database_url)
+        _connection = _PgWrapper(pg_conn)
+        logger.info("PostgreSQL ga ulandi: %s", database_url.split("@")[-1] if "@" in database_url else database_url)
     else:
         _is_postgres = False
         import aiosqlite
