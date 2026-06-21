@@ -480,6 +480,27 @@ async def api_top10():
     return JSONResponse({"top": top})
 
 
+@app.get("/api/stats/chart")
+async def api_chart():
+    daily = await users_db.get_daily_registrations(14)
+    now = datetime.now()
+    labels = []
+    data = []
+    for i in range(13, -1, -1):
+        day = (now - timedelta(days=i)).strftime("%d.%m")
+        labels.append(day)
+        val = 0
+        for d in daily:
+            d_day = d["day"]
+            if isinstance(d_day, str):
+                d_day = d_day[:10]
+            if d_day == (now - timedelta(days=i)).strftime("%Y-%m-%d"):
+                val = d["cnt"]
+                break
+        data.append(val)
+    return JSONResponse({"labels": labels, "data": data})
+
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -427,6 +427,34 @@ async def unban_user(user_id: int) -> None:
     await conn.commit()
 
 
+async def get_daily_registrations(days: int = 14) -> list[dict[str, Any]]:
+    conn = await get_connection()
+    from bot.database.connection import is_postgres
+    if is_postgres():
+        cursor = await conn.execute(
+            f"""
+            SELECT joined_at::date as day, COUNT(*) as cnt
+            FROM users
+            WHERE joined_at >= NOW() - INTERVAL '{days} days'
+            GROUP BY day
+            ORDER BY day ASC
+            """
+        )
+    else:
+        cursor = await conn.execute(
+            """
+            SELECT date(joined_at) as day, COUNT(*) as cnt
+            FROM users
+            WHERE joined_at >= datetime('now', ?)
+            GROUP BY day
+            ORDER BY day ASC
+            """,
+            (f"-{days} days",),
+        )
+    rows = await cursor.fetchall()
+    return [dict(r) for r in rows]
+
+
 async def get_all_users_paginated(offset: int = 0, limit: int = 50) -> list[dict[str, Any]]:
     conn = await get_connection()
     cursor = await conn.execute(

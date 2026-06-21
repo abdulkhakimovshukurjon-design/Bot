@@ -33,6 +33,30 @@
 
 <div class="panel">
     <div class="panel-head">
+        <h3>📈 Foydalanuvchilar o'sishi (14 kun)</h3>
+    </div>
+    <div class="panel-body">
+        <canvas id="growthChart" height="200"></canvas>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+    <div class="panel">
+        <div class="panel-head"><h3>💎 Premium</h3></div>
+        <div class="panel-body">
+            <canvas id="premiumChart" height="180"></canvas>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-head"><h3>💰 UC taqsimoti</h3></div>
+        <div class="panel-body">
+            <canvas id="ucChart" height="180"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
         <h3>🏆 Top 10 reyting</h3>
     </div>
     <div class="panel-body">
@@ -50,6 +74,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script>
 async function loadTop10() {
     const res = await fetch('/api/stats/top10');
@@ -81,5 +106,85 @@ async function refreshStats() {
     document.getElementById('stat-total-uc').textContent = s.total_uc;
 }
 setInterval(refreshStats, 15000);
+
+Chart.defaults.color = '#a0a0a0';
+Chart.defaults.font.family = "'JetBrains Mono', monospace";
+
+async function loadCharts() {
+    const [statRes, chartRes] = await Promise.all([
+        fetch('/api/stats'),
+        fetch('/api/stats/chart')
+    ]);
+    const stats = await statRes.json();
+    const chart = await chartRes.json();
+
+    new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: {
+            labels: chart.labels,
+            datasets: [{
+                label: 'Yangi foydalanuvchilar',
+                data: chart.data,
+                borderColor: '#84ff61',
+                backgroundColor: 'rgba(132,255,97,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('premiumChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Premium', 'Oddiy'],
+            datasets: [{
+                data: [stats.premium_users, stats.total_users - stats.premium_users],
+                backgroundColor: ['#ffd55a', '#2a2a2a'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12 } }
+            }
+        }
+    });
+
+    new Chart(document.getElementById('ucChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Tarqatilgan UC', 'Yechib olingan', 'Balansda'],
+            datasets: [{
+                data: [
+                    stats.total_admin_granted_uc || 0,
+                    stats.total_withdrawn_uc || 0,
+                    Math.max(0, stats.total_uc - stats.total_withdrawn_uc)
+                ],
+                backgroundColor: ['#84ff61', '#ff6b6b', '#4a9eff'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12 } }
+            }
+        }
+    });
+}
+loadCharts();
 </script>
 {% endblock %}
