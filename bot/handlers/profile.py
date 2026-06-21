@@ -33,9 +33,9 @@ async def show_profile(message: Message) -> None:
         f"🎮 PUBG Nickname: {user['pubg_nickname']}\n"
         f"💰 UC Balansi: {user['uc_balance']} UC\n"
         f"👥 Referallar soni: {referral_count}\n"
-        f"💎 Status: {status}\n\n"
+        f"💎 Status: {status}\n"
         f"🔑 Telegram ID: <code>{message.from_user.id}</code>\n"
-        f"🌐 <i>WebApp ga kirish uchun ID dan foydalaning: {config.WEBAPP_URL}/games?user_id={message.from_user.id}</i>"
+        f"🌐 WebApp: <a href='{config.WEBAPP_URL}/games'>{config.WEBAPP_URL}</a>"
     )
     await message.answer(text, reply_markup=edit_pubg_id_kb())
 
