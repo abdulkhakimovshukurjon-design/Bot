@@ -21,6 +21,10 @@
                 <label>Xabar matni</label>
                 <textarea id="broadcast-text" rows="6" placeholder="Xabaringizni shu yerga yozing..."></textarea>
             </div>
+            <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+                <input type="checkbox" id="broadcast-channels">
+                <span>Kanallarga ham yuborish</span>
+            </label>
             <button type="button" class="btn btn-primary" onclick="sendBroadcast()" id="send-btn">📤 Yuborish</button>
             <span id="send-status" class="muted mono" style="margin-left: 12px; font-size: 12px;"></span>
         </form>
@@ -75,6 +79,7 @@ async function sendBroadcast() {
         const formData = new FormData();
         if (text) formData.set('message', text);
         if (file) formData.set('photo', file);
+        formData.set('send_to_channels', document.getElementById('broadcast-channels').checked ? '1' : '0');
         const res = await fetch('/api/broadcast/send', {
             method: 'POST',
             body: formData

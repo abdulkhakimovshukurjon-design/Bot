@@ -297,17 +297,21 @@ async def broadcast_page(request: Request):
 
 
 @app.post("/api/broadcast/send")
-async def api_send_broadcast(message: str = Form(""), photo: UploadFile | None = File(None)):
+async def api_send_broadcast(message: str = Form(""), photo: UploadFile | None = File(None), send_to_channels: str = Form("0")):
     """
     Webdan broadcast yuborish — aiogram Bot orqali to'g'ridan-to'g'ri yuboradi.
     Rasm fayl sifatida yuklansa, rasm + caption yuboradi, aks holda faqat matn.
+    send_to_channels=1 bo'lsa, kanallarga ham yuboradi.
     """
     import asyncio
     from aiogram import Bot
     from aiogram.types import BufferedInputFile
 
+    from bot.database import channels as channels_db
+
     bot = Bot(token=config.BOT_TOKEN)
     user_ids = await users_db.get_all_user_ids(only_active=True)
+    channels = await channels_db.get_all_channels() if send_to_channels == "1" else []
 
     photo_bytes = await photo.read() if photo else None
     photo_name = photo.filename if photo else None
@@ -322,6 +326,19 @@ async def api_send_broadcast(message: str = Form(""), photo: UploadFile | None =
                     await bot.send_photo(chat_id=uid, photo=input_file, caption=message or None)
                 else:
                     await bot.send_message(uid, message)
+                sent += 1
+            except Exception:
+                failed += 1
+            await asyncio.sleep(0.05)
+
+        for ch in channels:
+            try:
+                chat_id = int(ch["chat_id"])
+                if photo_bytes:
+                    input_file = BufferedInputFile(file=photo_bytes, filename=photo_name or "photo.jpg")
+                    await bot.send_photo(chat_id=chat_id, photo=input_file, caption=message or None)
+                else:
+                    await bot.send_message(chat_id, message)
                 sent += 1
             except Exception:
                 failed += 1
