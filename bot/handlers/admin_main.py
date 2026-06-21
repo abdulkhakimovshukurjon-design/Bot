@@ -3,7 +3,7 @@ Admin panel: bosh menyu, statistika.
 """
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import Message, PhotoSize
 
 from bot.database import users as users_db
 from bot.keyboards.reply import admin_panel_kb, main_menu_kb
@@ -14,6 +14,17 @@ router = Router(name="admin_main")
 
 def is_admin(user_id: int) -> bool:
     return user_id in ADMIN_IDS
+
+
+@router.message(Command("fileid"), F.photo)
+async def get_file_id(message: Message) -> None:
+    if not is_admin(message.from_user.id):
+        return
+    photo: PhotoSize = message.photo[-1]
+    await message.answer(
+        f"📸 Rasm file_id:\n<code>{photo.file_id}</code>\n\n"
+        f"Hajmi: {photo.width}x{photo.height}"
+    )
 
 
 @router.message(Command("admin"))

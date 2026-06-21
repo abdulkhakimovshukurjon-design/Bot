@@ -12,6 +12,11 @@
     <div class="panel-head"><h3>✍️ Yangi xabar</h3></div>
     <div class="panel-body" style="padding: 18px 20px;">
         <div class="field">
+            <label>Rasm File ID (ixtiyoriy)</label>
+            <input type="text" id="broadcast-photo" placeholder="Rasm file_id si...">
+            <span class="muted" style="font-size:11px;">Botga rasm yuborib, uni reply qilib file_id ni olishingiz mumkin</span>
+        </div>
+        <div class="field">
             <label>Xabar matni</label>
             <textarea id="broadcast-text" rows="6" placeholder="Xabaringizni shu yerga yozing..."></textarea>
         </div>
@@ -49,7 +54,8 @@
 <script>
 async function sendBroadcast() {
     const text = document.getElementById('broadcast-text').value.trim();
-    if (!text) { showToast('⚠️ Xabar matnini kiriting'); return; }
+    const photo = document.getElementById('broadcast-photo').value.trim();
+    if (!text && !photo) { showToast('⚠️ Xabar matni yoki rasm file_id kiriting'); return; }
     if (!confirm('Xabarni barcha foydalanuvchilarga yuborishni tasdiqlaysizmi?')) return;
 
     const btn = document.getElementById('send-btn');
@@ -58,9 +64,12 @@ async function sendBroadcast() {
     status.textContent = '📤 Yuborilmoqda, biroz kutib turing...';
 
     try {
+        const body = new URLSearchParams();
+        if (text) body.set('message', text);
+        if (photo) body.set('photo', photo);
         const res = await fetch('/api/broadcast/send', {
             method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: `message=${encodeURIComponent(text)}`
+            body: body.toString()
         });
         const data = await res.json();
         status.textContent = `✅ Yuborildi: ${data.sent} | ❌ Yuborilmadi: ${data.failed}`;

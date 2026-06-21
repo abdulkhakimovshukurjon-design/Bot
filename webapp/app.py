@@ -297,11 +297,10 @@ async def broadcast_page(request: Request):
 
 
 @app.post("/api/broadcast/send")
-async def api_send_broadcast(message: str = Form(...)):
+async def api_send_broadcast(message: str = Form(""), photo: str = Form("")):
     """
     Webdan broadcast yuborish — aiogram Bot orqali to'g'ridan-to'g'ri yuboradi.
-    Eslatma: bot.py jarayoni alohida ishlayotgan bo'lsa ham, bu yerda mustaqil Bot
-    instance yaratib xabar yuboramiz.
+    Rasm file_id berilsa, rasm + caption yuboradi, aks holda faqat matn.
     """
     import asyncio
     from aiogram import Bot
@@ -310,10 +309,14 @@ async def api_send_broadcast(message: str = Form(...)):
     user_ids = await users_db.get_all_user_ids(only_active=True)
 
     sent, failed = 0, 0
+    preview = message[:100] if message else (photo[:30] + "...")
     try:
         for uid in user_ids:
             try:
-                await bot.send_message(uid, message)
+                if photo:
+                    await bot.send_photo(chat_id=uid, photo=photo, caption=message or None)
+                else:
+                    await bot.send_message(uid, message)
                 sent += 1
             except Exception:
                 failed += 1
@@ -324,7 +327,7 @@ async def api_send_broadcast(message: str = Form(...)):
     conn = await get_connection()
     await conn.execute(
         "INSERT INTO broadcast_logs (admin_id, message_preview, sent_count, failed_count) VALUES (?, ?, ?, ?)",
-        (0, message[:100], sent, failed),
+        (0, preview, sent, failed),
     )
     await conn.commit()
 
