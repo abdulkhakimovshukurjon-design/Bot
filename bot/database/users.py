@@ -148,6 +148,8 @@ async def admin_adjust_balance(
     """
     conn = await get_connection()
     user = await get_user(user_id)
+    if not user:
+        await create_user(user_id, None)
     current = user["uc_balance"] if user else 0
 
     new_balance = max(0, current + amount)
