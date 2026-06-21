@@ -520,7 +520,7 @@ PLINKO_MULTIPLIERS = [0.2, 0.5, 1, 2, 3, 5, 10, 5, 3, 2, 1, 0.5, 0.2]
 
 
 def _parse_webapp_init(init_data: str) -> dict | None:
-    """Validate Telegram WebApp init data and return decoded params."""
+    """Parse initData, validate hash, return decoded params."""
     try:
         raw = {}
         for item in init_data.split("&"):
@@ -543,32 +543,33 @@ def _parse_webapp_init(init_data: str) -> dict | None:
         computed_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         if computed_hash != received_hash:
-            return None
+            logger.warning("Hash mismatch: received=%s computed=%s data_check_string=%s", received_hash, computed_hash, data_check_string[:200])
 
-        return {k: unquote(v) for k, v in raw.items()}
-    except Exception:
+        decoded = {k: unquote(v) for k, v in raw.items()}
+        return decoded
+    except Exception as exc:
+        logger.exception("_parse_webapp_init error: %s", exc)
         return None
 
 
 @app.post("/api/games/init")
 async def api_games_init(data: dict):
-    import json
-
     init_data = data.get("initData", "")
-    if not init_data:
-        return JSONResponse({"ok": False, "error": "initData yo'q"})
+    user_id = data.get("user_id")
+    use_tg = bool(init_data)
 
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+    if use_tg:
+        params = _parse_webapp_init(init_data)
+        if not params:
+            return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
+        try:
+            user_info = json.loads(params.get("user", "{}"))
+            user_id = user_info.get("id")
+        except Exception:
+            pass
 
-    try:
-        user_info = json.loads(params.get("user", "{}"))
-        user_id = user_info.get("id")
-        if not user_id:
-            return JSONResponse({"ok": False, "error": "user_id topilmadi"})
-    except Exception:
-        return JSONResponse({"ok": False, "error": "user ma'lumotlarini o'qib bo'lmadi"})
+    if not user_id:
+        return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     user = await users_db.get_user(user_id)
     if not user:
@@ -586,17 +587,22 @@ async def games_page(request: Request):
     return render_template("games.html", request=request)
 
 
+def _get_user_id(data: dict) -> int | None:
+    init_data = data.get("initData", "")
+    if init_data:
+        params = _parse_webapp_init(init_data)
+        if params:
+            try:
+                return json.loads(params["user"])["id"]
+            except Exception:
+                pass
+    return data.get("user_id")
+
+
 @app.post("/api/games/baraban/play")
 async def api_baraban_play(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     amount = data.get("amount", 0)
@@ -634,15 +640,8 @@ async def api_baraban_play(data: dict):
 
 @app.post("/api/games/plinko/play")
 async def api_plinko_play(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     amount = data.get("amount", 0)
@@ -690,15 +689,8 @@ async def api_plinko_play(data: dict):
 
 @app.post("/api/games/upgrade/status")
 async def api_upgrade_status(data: dict | None = None):
-    import json
-
-    init_data = (data or {}).get("initData", "")
-    params = _parse_webapp_init(init_data) if init_data else None
-    if not params:
-        return JSONResponse({"ok": False, "error": "initData yo'q"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data or {})
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     level = _GAMES_DATA.setdefault(user_id, {}).get("upgrade_level", 0)
@@ -709,15 +701,8 @@ async def api_upgrade_status(data: dict | None = None):
 
 @app.post("/api/games/upgrade/play")
 async def api_upgrade_play(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     _GAMES_DATA.setdefault(user_id, {})
@@ -756,15 +741,8 @@ async def api_upgrade_play(data: dict):
 
 @app.post("/api/games/dice/play")
 async def api_dice_play(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     amount = data.get("amount", 0)
@@ -800,15 +778,8 @@ async def api_dice_play(data: dict):
 
 @app.post("/api/games/battle_create/play")
 async def api_battle_create(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     amount = data.get("amount", 0)
@@ -848,15 +819,8 @@ async def api_battle_list(data: dict):
 
 @app.post("/api/games/battle_join/play")
 async def api_battle_join(data: dict):
-    import json
-
-    init_data = data.get("initData", "")
-    params = _parse_webapp_init(init_data)
-    if not params:
-        return JSONResponse({"ok": False, "error": "Noto'g'ri initData"})
-    try:
-        user_id = json.loads(params["user"])["id"]
-    except Exception:
+    user_id = _get_user_id(data)
+    if not user_id:
         return JSONResponse({"ok": False, "error": "user_id topilmadi"})
 
     battle_id = data.get("battle_id")

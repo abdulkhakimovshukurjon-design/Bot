@@ -1,13 +1,15 @@
 const API = {
-  async init(initData) {
+  async init(data) {
     const r = await fetch("/api/games/init", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
+      body: JSON.stringify(data),
     });
     return r.json();
   },
   async play(game, payload) {
+    payload.user_id = user ? user.id : null;
+    payload.initData = initDataStr;
     const r = await fetch(`/api/games/${game}/play`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -19,7 +21,7 @@ const API = {
     const r = await fetch("/api/games/upgrade/status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData }),
+      body: JSON.stringify({ initData, user_id: user ? user.id : null }),
     });
     return r.json();
   },
@@ -59,8 +61,43 @@ async function init() {
   if (tg && tg.initData) {
     initDataStr = tg.initData;
   }
+
+  if (!initDataStr) {
+    document.getElementById("lobby").style.display = "none";
+    const loginDiv = document.createElement("div");
+    loginDiv.id = "login-form";
+    loginDiv.style.textAlign = "center";
+    loginDiv.style.marginTop = "40px";
+    loginDiv.innerHTML = `
+      <h2>🎮 O'yinlar</h2>
+      <p style="color:#888;margin:16px 0;">Telegram WebApp orqali kiring yoki Telegram ID ingizni kiriting:</p>
+      <input type="number" id="uid-input" placeholder="Telegram ID" style="padding:10px;border-radius:8px;border:none;width:200px;font-size:16px;background:#16213e;color:#fff;text-align:center;">
+      <button id="uid-login-btn" class="play-btn" style="max-width:200px;margin:12px auto;">Kirish</button>
+      <p style="color:#666;font-size:12px;margin-top:8px;">ID ni botdagi profil bo'limidan topishingiz mumkin</p>
+    `;
+    document.getElementById("app").appendChild(loginDiv);
+
+    document.getElementById("uid-login-btn").addEventListener("click", async () => {
+      const uid = parseInt(document.getElementById("uid-input").value);
+      if (!uid) return showToast("ID kiriting", false);
+      try {
+        const res = await API.init({ user_id: uid });
+        if (res.ok) {
+          user = res.user;
+          balance = res.balance;
+          updateBalanceUI();
+          loginDiv.remove();
+          document.getElementById("lobby").style.display = "block";
+        } else {
+          showToast(res.error || "Xatolik", false);
+        }
+      } catch (e) { showToast("Server xatosi", false); }
+    });
+    return;
+  }
+
   try {
-    const res = await API.init({ initData: initDataStr });
+    const res = await API.init({ initData: initDataStr, user_id: null });
     if (res.ok) {
       user = res.user;
       balance = res.balance;
@@ -133,7 +170,7 @@ function renderBaraban(container) {
     playBtn.disabled = true;
     playBtn.textContent = "⏳ Aylanmoqda...";
     try {
-      const res = await API.play("baraban", { amount: selectedBet, initData: initDataStr });
+      const res = await API.play("baraban", { amount: selectedBet });
       if (res.ok) {
         balance = res.balance;
         updateBalanceUI();
@@ -162,7 +199,7 @@ function renderPlinko(container) {
     playBtn.disabled = true;
     playBtn.textContent = "⏳ Tushmoqda...";
     try {
-      const res = await API.play("plinko", { amount: selectedBet, initData: initDataStr });
+      const res = await API.play("plinko", { amount: selectedBet });
       if (res.ok) {
         balance = res.balance;
         updateBalanceUI();
@@ -194,7 +231,7 @@ async function renderUpgrade(container) {
     playBtn.disabled = true;
     playBtn.textContent = "⏳...";
     try {
-      const res = await API.play("upgrade", { initData: initDataStr });
+      const res = await API.play("upgrade", {});
       if (res.ok) {
         balance = res.balance;
         updateBalanceUI();
@@ -255,7 +292,7 @@ function renderDice(container) {
     playBtn.disabled = true;
     playBtn.textContent = "⏳...";
     try {
-      const res = await API.play("dice", { amount: selectedBet, number: selectedFace, initData: initDataStr });
+      const res = await API.play("dice", { amount: selectedBet, number: selectedFace });
       if (res.ok) {
         balance = res.balance;
         updateBalanceUI();
@@ -292,7 +329,7 @@ async function renderBattle(container) {
     createBtn.disabled = true;
     createBtn.textContent = "⏳...";
     try {
-      const res = await API.play("battle_create", { amount: selectedBet, initData: initDataStr });
+      const res = await API.play("battle_create", { amount: selectedBet });
       if (res.ok) {
         statusDiv.innerHTML = `✅ Battle yaratildi! ${res.amount} UC. ID: ${res.battle_id}.<br>Raqib qatnashishi uchun link: <a href="#" id="battle-link" style="color:#ffd700;">/${res.battle_id}</a>`;
         showToast("Battle yaratildi! Raqib kutilmoqda...", true);
@@ -313,7 +350,7 @@ async function renderBattle(container) {
     joinBtn.disabled = true;
     joinBtn.textContent = "⏳...";
     try {
-      const res = await API.play("battle_list", { initData: initDataStr });
+      const res = await API.play("battle_list", {});
       if (res.ok && res.battles && res.battles.length > 0) {
         let html = "Mavjud battellar:<br>";
         res.battles.forEach((b) => {
@@ -332,7 +369,7 @@ async function renderBattle(container) {
 
 window.joinBattle = async function(battleId, amount) {
   try {
-    const res = await API.play("battle_join", { battle_id: battleId, initData: initDataStr });
+      const res = await API.play("battle_join", { battle_id: battleId });
     if (res.ok) {
       balance = res.balance;
       updateBalanceUI();
