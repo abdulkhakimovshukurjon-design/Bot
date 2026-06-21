@@ -28,390 +28,315 @@ const API = {
 };
 
 let tg = null;
-try {
-  tg = window.Telegram.WebApp;
-  tg.expand();
-} catch (e) {
-  tg = null;
-}
-
-let user = null;
-let balance = 0;
-let currentGame = null;
-let selectedBet = 0;
-let initDataStr = "";
+try { tg = window.Telegram.WebApp; tg.expand(); } catch (e) { tg = null; }
+let user = null, balance = 0, currentGame = null, selectedBet = 0, initDataStr = "";
 
 function $(id) { return document.getElementById(id); }
 
+// ===== PARTICLES =====
+function spawnParticles() {
+  const container = $("particles");
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement("div");
+    p.className = "particle";
+    p.style.left = Math.random() * 100 + "%";
+    p.style.animationDuration = (10 + Math.random() * 20) + "s";
+    p.style.animationDelay = (Math.random() * 20) + "s";
+    p.style.width = p.style.height = (2 + Math.random() * 4) + "px";
+    const colors = ["var(--neon-purple)", "var(--neon-blue)", "var(--neon-gold)", "var(--neon-cyan)"];
+    p.style.background = colors[Math.floor(Math.random() * colors.length)];
+    container.appendChild(p);
+  }
+  const coins = ["🪙", "💰", "✨"];
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement("div");
+    c.className = "floating-coin";
+    c.textContent = coins[Math.floor(Math.random() * coins.length)];
+    c.style.left = Math.random() * 100 + "%";
+    c.style.fontSize = (14 + Math.random() * 14) + "px";
+    c.style.animationDuration = (25 + Math.random() * 25) + "s";
+    c.style.animationDelay = (Math.random() * 30) + "s";
+    container.appendChild(c);
+  }
+}
+
+// ===== TOAST =====
 function showToast(msg, isGood) {
   const t = $("toast");
   t.textContent = msg;
-  t.style.background = isGood ? "#2e7d32" : "#c62828";
+  t.style.background = isGood ? "linear-gradient(135deg, rgba(16,185,129,0.9), rgba(6,182,212,0.9))" : "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(168,85,247,0.9))";
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2500);
+  setTimeout(() => t.classList.remove("show"), 2800);
 }
 
 function updateBalanceUI() {
-  $("balance").textContent = balance;
-  const bi = $("balance-info");
-  if (bi) bi.innerHTML = `💰 Balans: <span id="balance">${balance}</span> UC`;
+  $("balance").textContent = balance.toLocaleString();
 }
 
+// ===== INIT =====
 async function init() {
-  if (tg && tg.initData) {
-    initDataStr = tg.initData;
-  }
-
+  spawnParticles();
+  if (tg && tg.initData) initDataStr = tg.initData;
   const urlParams = new URLSearchParams(window.location.search);
   const urlUserId = urlParams.get("user_id") ? parseInt(urlParams.get("user_id")) : null;
 
   if (initDataStr) {
     const res = await API.init({ initData: initDataStr });
-    if (res.ok) {
-      user = res.user; balance = res.balance; updateBalanceUI(); return;
-    }
+    if (res.ok) { user = res.user; balance = res.balance; updateBalanceUI(); afterLogin(); return; }
   }
-
   if (urlUserId) {
     const res = await API.init({ user_id: urlUserId });
-    if (res.ok) {
-      user = res.user; balance = res.balance; updateBalanceUI(); return;
-    }
+    if (res.ok) { user = res.user; balance = res.balance; updateBalanceUI(); afterLogin(); return; }
   }
 
-  document.getElementById("lobby").style.display = "none";
-  const loginDiv = document.createElement("div");
-  loginDiv.id = "login-form";
-  loginDiv.style.textAlign = "center";
-  loginDiv.style.marginTop = "40px";
-  loginDiv.innerHTML = `
-    <h2>🎮 O'yinlar</h2>
-    <p style="color:#888;margin:16px 0;">Telegram ID ingizni kiriting:</p>
-    <input type="number" id="uid-input" placeholder="Telegram ID" style="padding:10px;border-radius:8px;border:none;width:200px;font-size:16px;background:#16213e;color:#fff;text-align:center;">
-    <button id="uid-login-btn" class="play-btn" style="max-width:200px;margin:12px auto;">Kirish</button>
-    <p style="color:#666;font-size:12px;margin-top:8px;">ID ni botdagi profil bo'limidan topasiz</p>
-  `;
-  document.getElementById("app").appendChild(loginDiv);
-
+  $("app").innerHTML = `
+    <div id="login-form">
+      <h2 style="font-family:Orbitron,sans-serif;color:var(--neon-gold);">🎮 Free UC Bot</h2>
+      <p style="color:var(--text-secondary);margin:16px 0;">Telegram ID ingizni kiriting:</p>
+      <input type="number" id="uid-input" placeholder="Telegram ID" style="padding:12px;border-radius:10px;border:1px solid var(--glass-border);width:200px;font-size:16px;background:var(--glass);color:#fff;text-align:center;outline:none;">
+      <button id="uid-login-btn" style="display:block;width:200px;margin:12px auto;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:700;background:linear-gradient(135deg,var(--neon-purple),var(--neon-pink));color:#fff;cursor:pointer;font-family:Orbitron,sans-serif;">Kirish</button>
+      <p style="color:#666;font-size:12px;margin-top:12px;">ID ni botdagi profil bo'limidan topasiz</p>
+    </div>`;
   document.getElementById("uid-login-btn").addEventListener("click", async () => {
     const uid = parseInt(document.getElementById("uid-input").value);
     if (!uid) return showToast("ID kiriting", false);
     const res = await API.init({ user_id: uid });
-    if (res.ok) {
-      user = res.user; balance = res.balance; updateBalanceUI();
-      loginDiv.remove(); document.getElementById("lobby").style.display = "block";
-    } else {
-      showToast(res.error || "Xatolik", false);
-    }
+    if (res.ok) { user = res.user; balance = res.balance; updateBalanceUI(); location.reload(); }
+    else { showToast(res.error || "Xatolik", false); }
   });
 }
 
-// Lobby
+function afterLogin() {
+  $("stat-level").textContent = "5";
+  loadWinners();
+}
+
+// ===== GAME CARDS =====
 document.querySelectorAll(".game-card").forEach((card) => {
   card.addEventListener("click", () => {
     const g = card.dataset.game;
-    currentGame = g;
-    selectedBet = 0;
-    $("lobby").style.display = "none";
+    currentGame = g; selectedBet = 0;
+    $("app").style.display = "none";
     $("game-screen").style.display = "block";
+    $("game-screen-title").textContent = card.querySelector(".game-name").textContent;
     showGame(g);
   });
 });
-
-$("back-to-lobby").addEventListener("click", () => {
+$("game-back-btn").addEventListener("click", () => {
   $("game-screen").style.display = "none";
-  $("lobby").style.display = "block";
+  $("app").style.display = "block";
   currentGame = null;
 });
 
-// Game renderers
+// ===== FEATURE BUTTONS =====
+$("daily-bonus-btn").addEventListener("click", () => showToast("🎁 Kunlik bonus olindi! +10 UC", true));
+$("settings-btn").addEventListener("click", () => showToast("⚙️ Sozlamalar tez kunda", false));
+document.querySelectorAll("#scroll-bonus,#scroll-withdraw,#scroll-referral,#scroll-leaderboard,#scroll-profile").forEach(el => {
+  el.addEventListener("click", () => showToast("⭐ Tez kunda", false));
+});
+
+// ===== GAME RENDERERS =====
 function showGame(game) {
-  const container = $("game-content");
-  if (game === "baraban") renderBaraban(container);
-  else if (game === "plinko") renderPlinko(container);
-  else if (game === "upgrade") renderUpgrade(container);
-  else if (game === "dice") renderDice(container);
-  else if (game === "battle") renderBattle(container);
+  const c = $("game-content"); c.innerHTML = "";
+  if (game === "baraban") renderBaraban(c);
+  else if (game === "plinko") renderPlinko(c);
+  else if (game === "upgrade") renderUpgrade(c);
+  else if (game === "dice") renderDice(c);
+  else if (game === "battle") renderBattle(c);
 }
 
-// Bet selector helper
-function renderBetSelector(container, game, amounts = [10, 25, 50, 100, 250, 500]) {
-  const div = document.createElement("div");
-  div.className = "bet-btns";
-  div.id = "bet-selector";
-  amounts.forEach((a) => {
-    const btn = document.createElement("button");
-    btn.className = "bet-btn";
-    btn.textContent = a + " UC";
-    btn.dataset.amount = a;
+function renderBetSelector(container, amounts = [10, 25, 50, 100, 250, 500]) {
+  const div = document.createElement("div"); div.className = "bet-btns";
+  amounts.forEach(a => {
+    const btn = document.createElement("button"); btn.className = "bet-btn";
+    btn.textContent = a + " UC"; btn.dataset.amount = a;
     btn.addEventListener("click", () => {
-      div.querySelectorAll(".bet-btn").forEach((b) => b.classList.remove("selected"));
-      btn.classList.add("selected");
-      selectedBet = a;
+      div.querySelectorAll(".bet-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected"); selectedBet = a;
     });
     div.appendChild(btn);
   });
   container.appendChild(div);
 }
 
-// ---------- BARABAN ----------
-function renderBaraban(container) {
-  container.innerHTML = '<h2>🎰 Baraban</h2><p style="color:#888;font-size:13px;">0x, 0.5x, 1x, 1.5x, 2x, 3x, 5x, 10x, 20x</p>';
-  renderBetSelector(container, "baraban");
-  const playBtn = document.createElement("button");
-  playBtn.className = "play-btn";
-  playBtn.textContent = "🎰 Aylantirish";
-  playBtn.addEventListener("click", async () => {
+// ===== BARABAN =====
+function renderBaraban(c) {
+  c.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">🎰 Aylantirib katta yutib oling! 0x – 20x</p>';
+  renderBetSelector(c);
+  const btn = document.createElement("button"); btn.className = "play-btn";
+  btn.innerHTML = '<span class="spinner" style="display:none;" id="spin-spinner"></span> <span id="spin-text">🎰 Aylantirish</span>';
+  btn.addEventListener("click", async () => {
     if (!selectedBet) return showToast("Avval tikish miqdorini tanlang", false);
-    playBtn.disabled = true;
-    playBtn.textContent = "⏳ Aylanmoqda...";
+    btn.disabled = true; btn.querySelector("#spin-text").textContent = "⏳...";
     try {
       const res = await API.play("baraban", { amount: selectedBet });
-      if (res.ok) {
-        balance = res.balance;
-        updateBalanceUI();
-        showResult(container, res);
-      } else {
-        showToast(res.error || "Xatolik", false);
-      }
-    } catch (e) {
-      showToast("Server xatosi", false);
-    }
-    playBtn.disabled = false;
-    playBtn.textContent = "🎰 Aylantirish";
+      if (res.ok) { balance = res.balance; updateBalanceUI(); showResultBaraban(c, res); }
+      else showToast(res.error || "Xatolik", false);
+    } catch (e) { showToast("Server xatosi", false); }
+    btn.disabled = false; btn.querySelector("#spin-text").textContent = "🎰 Aylantirish";
   });
-  container.appendChild(playBtn);
+  c.appendChild(btn);
+}
+function showResultBaraban(c, res) {
+  const old = c.querySelector(".result"); if (old) old.remove();
+  const d = document.createElement("div"); d.className = "result " + (res.win > 0 ? "win" : "lose");
+  d.innerHTML = `<div class="wheel-display">${res.wheel || ""}</div>` + (res.win > 0 ? `🎉 Yutdingiz! <strong>+${res.win} UC</strong> (x${res.multiplier})` : `😔 Yutqazdingiz. -${res.amount} UC`) + `<br><span style="font-size:13px;color:var(--neon-gold);">💰 ${res.balance} UC</span>`;
+  c.appendChild(d);
 }
 
-// ---------- PLINKO ----------
-function renderPlinko(container) {
-  container.innerHTML = '<h2>🧩 Plinko</h2><p style="color:#888;font-size:13px;">0.2x ~ 10x gacha</p>';
-  renderBetSelector(container, "plinko");
-  const playBtn = document.createElement("button");
-  playBtn.className = "play-btn";
-  playBtn.textContent = "🧩 Tashlash";
-  playBtn.addEventListener("click", async () => {
+// ===== PLINKO =====
+function renderPlinko(c) {
+  c.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">🧩 Plinko — to\'pni tashlang va ko\'paytirib oling!</p>';
+  renderBetSelector(c);
+  const btn = document.createElement("button"); btn.className = "play-btn"; btn.textContent = "🧩 Tashlash";
+  btn.addEventListener("click", async () => {
     if (!selectedBet) return showToast("Avval tikish miqdorini tanlang", false);
-    playBtn.disabled = true;
-    playBtn.textContent = "⏳ Tushmoqda...";
+    btn.disabled = true; btn.textContent = "⏳...";
     try {
       const res = await API.play("plinko", { amount: selectedBet });
-      if (res.ok) {
-        balance = res.balance;
-        updateBalanceUI();
-        showResult(container, res);
-      } else {
-        showToast(res.error || "Xatolik", false);
-      }
-    } catch (e) {
-      showToast("Server xatosi", false);
-    }
-    playBtn.disabled = false;
-    playBtn.textContent = "🧩 Tashlash";
+      if (res.ok) { balance = res.balance; updateBalanceUI(); showResultPlinko(c, res); }
+      else showToast(res.error || "Xatolik", false);
+    } catch (e) { showToast("Server xatosi", false); }
+    btn.disabled = false; btn.textContent = "🧩 Tashlash";
   });
-  container.appendChild(playBtn);
+  c.appendChild(btn);
+}
+function showResultPlinko(c, res) {
+  const old = c.querySelector(".result"); if (old) old.remove();
+  const d = document.createElement("div"); d.className = "result " + (res.win > 0 ? "win" : "lose");
+  d.innerHTML = (res.board ? `<div class="plinko-board">${res.board.replace(/\n/g,"<br>")}</div>` : "") + (res.win > 0 ? `🎉 Yutdingiz! <strong>+${res.win} UC</strong> (x${res.multiplier})` : `😔 Yutqazdingiz. -${res.amount} UC`) + `<br><span style="font-size:13px;color:var(--neon-gold);">💰 ${res.balance} UC</span>`;
+  c.appendChild(d);
 }
 
-// ---------- UPGRADE ----------
-async function renderUpgrade(container) {
-  container.innerHTML = '<h2>⬆️ Upgrade</h2>';
-  const infoDiv = document.createElement("div");
-  infoDiv.id = "upgrade-info";
-  infoDiv.className = "level-info";
-  container.appendChild(infoDiv);
-
-  const playBtn = document.createElement("button");
-  playBtn.className = "play-btn";
-  playBtn.textContent = "⬆️ Yangilash";
-  playBtn.addEventListener("click", async () => {
-    playBtn.disabled = true;
-    playBtn.textContent = "⏳...";
+// ===== UPGRADE =====
+async function renderUpgrade(c) {
+  c.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">⬆️ Darajangizni oshiring! Muvaffaqiyatsiz bo\'lsa 0 ga tushadi.</p>';
+  const info = document.createElement("div"); info.className = "level-info"; info.id = "upgrade-info"; c.appendChild(info);
+  const btn = document.createElement("button"); btn.className = "play-btn"; btn.textContent = "⬆️ Yangilash";
+  btn.addEventListener("click", async () => {
+    btn.disabled = true; btn.textContent = "⏳...";
     try {
       const res = await API.play("upgrade", {});
-      if (res.ok) {
-        balance = res.balance;
-        updateBalanceUI();
-        showResult(container, res);
-        await refreshUpgradeInfo(infoDiv);
-      } else {
-        showToast(res.error || "Xatolik", false);
-      }
-    } catch (e) {
-      showToast("Server xatosi", false);
-    }
-    playBtn.disabled = false;
-    playBtn.textContent = "⬆️ Yangilash";
+      if (res.ok) { balance = res.balance; updateBalanceUI(); showResultUpgrade(c, res); await refreshUpgradeInfo(info); }
+      else showToast(res.error || "Xatolik", false);
+    } catch (e) { showToast("Server xatosi", false); }
+    btn.disabled = false; btn.textContent = "⬆️ Yangilash";
   });
-  container.appendChild(playBtn);
-
-  await refreshUpgradeInfo(infoDiv);
+  c.appendChild(btn);
+  await refreshUpgradeInfo(info);
 }
-
 async function refreshUpgradeInfo(el) {
   try {
-    const initData = tg ? tg.initData : "";
-    const res = await API.upgradeStatus(initData);
-    if (res.ok) {
-      el.innerHTML = `🔧 Daraja: ${res.level} | Narx: ${res.cost} UC | Muvaffaqiyat: ${res.chance}%`;
-    }
+    const res = await API.upgradeStatus();
+    if (res.ok) el.innerHTML = `🔧 Daraja: <strong>${res.level}</strong> | Narx: <strong>${res.cost} UC</strong> | Muvaffaqiyat: <strong>${res.chance}%</strong>`;
   } catch (e) {}
 }
-
-// ---------- DICE ----------
-function renderDice(container) {
-  container.innerHTML = '<h2>🎲 Dice</h2><p style="color:#888;font-size:13px;">1-6 gacha son. To\'g\'ri topsangiz x6!</p>';
-  renderBetSelector(container, "dice");
-
-  const facesDiv = document.createElement("div");
-  facesDiv.className = "dice-faces";
-  let selectedFace = 0;
-  for (let i = 1; i <= 6; i++) {
-    const f = document.createElement("div");
-    f.className = "dice-face";
-    f.textContent = ["⚀", "⚁", "⚂", "⚃", "⚄", "⚅"][i - 1];
-    f.dataset.num = i;
-    f.addEventListener("click", () => {
-      facesDiv.querySelectorAll(".dice-face").forEach((x) => x.classList.remove("selected"));
-      f.classList.add("selected");
-      selectedFace = i;
-    });
-    facesDiv.appendChild(f);
-  }
-  container.appendChild(facesDiv);
-
-  const playBtn = document.createElement("button");
-  playBtn.className = "play-btn";
-  playBtn.textContent = "🎲 Tashlash";
-  playBtn.addEventListener("click", async () => {
-    if (!selectedBet) return showToast("Avval tikish miqdorini tanlang", false);
-    if (!selectedFace) return showToast("Son tanlang (1-6)", false);
-    playBtn.disabled = true;
-    playBtn.textContent = "⏳...";
-    try {
-      const res = await API.play("dice", { amount: selectedBet, number: selectedFace });
-      if (res.ok) {
-        balance = res.balance;
-        updateBalanceUI();
-        showResult(container, res);
-      } else {
-        showToast(res.error || "Xatolik", false);
-      }
-    } catch (e) {
-      showToast("Server xatosi", false);
-    }
-    playBtn.disabled = false;
-    playBtn.textContent = "🎲 Tashlash";
-  });
-  container.appendChild(playBtn);
+function showResultUpgrade(c, res) {
+  const old = c.querySelector(".result"); if (old) old.remove();
+  const d = document.createElement("div"); d.className = "result " + (res.win > 0 ? "win" : "lose");
+  d.innerHTML = (res.win > 0 ? `✅ Yangilash muvaffaqiyatli!<br>Daraja: <strong>${res.level}</strong><br>+${res.win} UC` : `❌ Muvaffaqiyatsiz!<br>Daraja 0 ga tushdi`) + `<br><span style="font-size:13px;color:var(--neon-gold);">💰 ${res.balance} UC</span>`;
+  c.appendChild(d);
 }
 
-// ---------- BATTLE ----------
-async function renderBattle(container) {
-  container.innerHTML = '<h2>⚔️ UC Battle</h2><p style="color:#888;font-size:13px;">Boshqa o\'yinchi bilan jang qiling!</p>';
-  renderBetSelector(container, "battle", [10, 25, 50, 100, 250]);
+// ===== DICE =====
+function renderDice(c) {
+  c.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">🎲 Sonni toping va x6 yutib oling!</p>';
+  renderBetSelector(c);
+  const facesDiv = document.createElement("div"); facesDiv.className = "dice-faces";
+  let selectedFace = 0;
+  for (let i = 1; i <= 6; i++) {
+    const f = document.createElement("div"); f.className = "dice-face";
+    f.textContent = ["⚀","⚁","⚂","⚃","⚄","⚅"][i-1]; f.dataset.num = i;
+    f.addEventListener("click", () => { facesDiv.querySelectorAll(".dice-face").forEach(x => x.classList.remove("selected")); f.classList.add("selected"); selectedFace = i; });
+    facesDiv.appendChild(f);
+  }
+  c.appendChild(facesDiv);
+  const btn = document.createElement("button"); btn.className = "play-btn"; btn.textContent = "🎲 Tashlash";
+  btn.addEventListener("click", async () => {
+    if (!selectedBet) return showToast("Avval tikish miqdorini tanlang", false);
+    if (!selectedFace) return showToast("Son tanlang (1-6)", false);
+    btn.disabled = true; btn.textContent = "⏳...";
+    try {
+      const res = await API.play("dice", { amount: selectedBet, number: selectedFace });
+      if (res.ok) { balance = res.balance; updateBalanceUI(); showResultDice(c, res); }
+      else showToast(res.error || "Xatolik", false);
+    } catch (e) { showToast("Server xatosi", false); }
+    btn.disabled = false; btn.textContent = "🎲 Tashlash";
+  });
+  c.appendChild(btn);
+}
+function showResultDice(c, res) {
+  const old = c.querySelector(".result"); if (old) old.remove();
+  const d = document.createElement("div"); d.className = "result " + (res.win > 0 ? "win" : "lose");
+  d.innerHTML = `<div style="font-size:48px;margin:8px 0;">${res.dice_face || ""}</div>` + `Siz: ${res.chosen} | Tushdi: ${res.result}<br>` + (res.win > 0 ? `🎉 Tabriklaymiz! <strong>+${res.win} UC</strong> (x6)` : `😔 Yutqazdingiz. -${res.amount} UC`) + `<br><span style="font-size:13px;color:var(--neon-gold);">💰 ${res.balance} UC</span>`;
+  c.appendChild(d);
+}
 
-  const statusDiv = document.createElement("div");
-  statusDiv.id = "battle-status";
-  statusDiv.style.margin = "10px 0";
-  statusDiv.style.fontSize = "14px";
-  statusDiv.style.color = "#aaa";
-  container.appendChild(statusDiv);
-
-  const createBtn = document.createElement("button");
-  createBtn.className = "play-btn";
-  createBtn.textContent = "⚔️ Battle yaratish";
+// ===== BATTLE =====
+async function renderBattle(c) {
+  c.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin-bottom:8px;">⚔️ Boshqa o\'yinchi bilan jang qiling!</p>';
+  renderBetSelector(c, [10, 25, 50, 100, 250]);
+  const statusDiv = document.createElement("div"); statusDiv.id = "battle-status"; c.appendChild(statusDiv);
+  const createBtn = document.createElement("button"); createBtn.className = "play-btn"; createBtn.textContent = "⚔️ Battle yaratish";
   createBtn.addEventListener("click", async () => {
     if (!selectedBet) return showToast("Avval tikish miqdorini tanlang", false);
-    createBtn.disabled = true;
-    createBtn.textContent = "⏳...";
+    createBtn.disabled = true; createBtn.textContent = "⏳...";
     try {
       const res = await API.play("battle_create", { amount: selectedBet });
-      if (res.ok) {
-        statusDiv.innerHTML = `✅ Battle yaratildi! ${res.amount} UC. ID: ${res.battle_id}.<br>Raqib qatnashishi uchun link: <a href="#" id="battle-link" style="color:#ffd700;">/${res.battle_id}</a>`;
-        showToast("Battle yaratildi! Raqib kutilmoqda...", true);
-      } else {
-        showToast(res.error || "Xatolik", false);
-      }
+      if (res.ok) { statusDiv.innerHTML = `✅ Battle yaratildi! ID: <strong>${res.battle_id}</strong><br>Raqib kutilmoqda...`; showToast("Battle yaratildi!", true); }
+      else showToast(res.error || "Xatolik", false);
     } catch (e) { showToast("Server xatosi", false); }
-    createBtn.disabled = false;
-    createBtn.textContent = "⚔️ Battle yaratish";
+    createBtn.disabled = false; createBtn.textContent = "⚔️ Battle yaratish";
   });
-  container.appendChild(createBtn);
-
-  const joinBtn = document.createElement("button");
-  joinBtn.className = "play-btn";
-  joinBtn.textContent = "🔍 Battlega qo'shilish";
-  joinBtn.style.background = "#0f3460";
+  c.appendChild(createBtn);
+  const joinBtn = document.createElement("button"); joinBtn.className = "play-btn"; joinBtn.textContent = "🔍 Battlega qo'shilish";
+  joinBtn.style.background = "linear-gradient(135deg, #0f3460, #1a5276)";
   joinBtn.addEventListener("click", async () => {
-    joinBtn.disabled = true;
-    joinBtn.textContent = "⏳...";
+    joinBtn.disabled = true; joinBtn.textContent = "⏳...";
     try {
       const res = await API.play("battle_list", {});
       if (res.ok && res.battles && res.battles.length > 0) {
         let html = "Mavjud battellar:<br>";
-        res.battles.forEach((b) => {
-          html += `<button class="bet-btn" onclick="joinBattle(${b.id}, ${b.amount})">${b.creator_name || b.creator_id}: ${b.amount} UC</button> `;
-        });
+        res.battles.forEach(b => { html += `<button class="bet-btn" onclick="window.joinBattle(${b.id},${b.amount})" style="margin:4px;">${b.creator_name || b.creator_id}: ${b.amount} UC</button> `; });
         statusDiv.innerHTML = html;
-      } else {
-        showToast("Hozircha battel yo'q", false);
-      }
+      } else showToast("Hozircha battel yo'q", false);
     } catch (e) { showToast("Server xatosi", false); }
-    joinBtn.disabled = false;
-    joinBtn.textContent = "🔍 Battlega qo'shilish";
+    joinBtn.disabled = false; joinBtn.textContent = "🔍 Battlega qo'shilish";
   });
-  container.appendChild(joinBtn);
+  c.appendChild(joinBtn);
 }
-
-window.joinBattle = async function(battleId, amount) {
+window.joinBattle = async (bid, amt) => {
   try {
-      const res = await API.play("battle_join", { battle_id: battleId });
-    if (res.ok) {
-      balance = res.balance;
-      updateBalanceUI();
-      showResult(document.getElementById("game-content"), res);
-    } else {
-      showToast(res.error || "Xatolik", false);
-    }
+    const res = await API.play("battle_join", { battle_id: bid });
+    if (res.ok) { balance = res.balance; updateBalanceUI(); showResultBattle(document.getElementById("game-content"), res); }
+    else showToast(res.error || "Xatolik", false);
   } catch (e) { showToast("Server xatosi", false); }
 };
-
-// ---------- Result display ----------
-function showResult(container, res) {
-  const oldResult = container.querySelector(".result");
-  if (oldResult) oldResult.remove();
-
-  const div = document.createElement("div");
-  div.className = "result " + (res.win > 0 ? "win" : "lose");
-
-  let html = "";
-  if (res.game === "baraban") {
-    html = `<div class="wheel-display">${res.wheel || ""}</div>`;
-  }
-  if (res.game === "plinko" && res.board) {
-    html = `<div class="plinko-board">${res.board.replace(/\n/g, "<br>")}</div>`;
-  }
-  if (res.game === "dice") {
-    html = `<div style="font-size:40px;margin:8px 0;">${res.dice_face || ""}</div>`;
-  }
-
-  if (res.win > 0) {
-    html += `🎉 +${res.win} UC (x${res.multiplier})`;
-  } else {
-    html += `😔 Yutqazdingiz. -${res.amount} UC`;
-  }
-  html += `<br><span style="font-size:13px;color:#ffd700;">💰 ${res.balance} UC</span>`;
-
-  if (res.game === "upgrade") {
-    html = `<br>` + (res.win > 0
-      ? `✅ Yangilash muvaffaqiyatli! Daraja: ${res.level}`
-      : `❌ Muvaffaqiyatsiz! Daraja 0 ga tushdi.`);
-    html += `<br><span style="font-size:13px;color:#ffd700;">💰 ${res.balance} UC</span>`;
-  }
-
-  div.innerHTML = html;
-  container.appendChild(div);
+function showResultBattle(c, res) {
+  const old = c.querySelector(".result"); if (old) old.remove();
+  const d = document.createElement("div"); d.className = "result " + (res.win > 0 ? "win" : "lose");
+  d.innerHTML = (res.win > 0 ? `🏆 Siz yutdingiz! +${res.total} UC!` : `😔 Raqib yutdi. -${res.amount} UC`) + `<br><span style="font-size:13px;color:var(--neon-gold);">💰 ${res.balance} UC</span>`;
+  c.appendChild(d);
 }
 
-// Init
+// ===== WINNERS (mock) =====
+function loadWinners() {
+  const names = ["Shukurjon", "Botir", "Zafar", "Dilmurod", "Akmal", "Jasur", "Ozod", "Hamid"];
+  const games = ["Baraban", "Plinko", "Dice", "Upgrade", "Battle"];
+  const amounts = [100, 250, 500, 50, 1000, 150, 300, 750];
+  const list = $("winners-list"); list.innerHTML = "";
+  for (let i = 0; i < 5; i++) {
+    const d = document.createElement("div"); d.className = "winner-item";
+    d.innerHTML = `
+      <div class="winner-avatar">${names[i % names.length][0]}</div>
+      <div class="winner-info">
+        <div class="winner-name">${names[i % names.length]}</div>
+        <div class="winner-meta">${games[i % games.length]} • ${i+1} daqiqa oldin</div>
+      </div>
+      <div class="winner-amount">+${amounts[i % amounts.length]} UC</div>`;
+    list.appendChild(d);
+  }
+}
+
+// ===== START =====
 init();

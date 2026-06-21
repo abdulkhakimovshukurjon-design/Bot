@@ -2,49 +2,136 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🎮 O'yinlar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Free UC Bot — O'yinlar</title>
 <script src="https://telegram.org/js/telegram-webapp.js"></script>
 <link rel="stylesheet" href="/static/css/games.css">
 </head>
 <body>
+
+<div id="particles"></div>
+
 <div id="app">
-  <div id="lobby">
-    <h1>🎮 O'yinlar</h1>
-    <p id="balance-info">💰 Balans: <span id="balance">0</span> UC</p>
-    <div class="games-grid">
-      <div class="game-card" data-game="baraban">
-        <div class="game-icon">🎰</div>
-        <div class="game-name">Baraban</div>
-        <div class="game-desc">0x – 20x gacha</div>
+  <!-- TOP HEADER -->
+  <div class="top-header">
+    <div class="top-header-content">
+      <div class="profile-avatar" id="avatar-btn">👤</div>
+      <div class="balance-section">
+        <div class="balance-label">💰 Balans</div>
+        <div class="balance-amount"><span id="balance">0</span> <span>UC</span></div>
       </div>
-      <div class="game-card" data-game="plinko">
-        <div class="game-icon">🧩</div>
-        <div class="game-name">Plinko</div>
-        <div class="game-desc">0.2x – 10x gacha</div>
-      </div>
-      <div class="game-card" data-game="upgrade">
-        <div class="game-icon">⬆️</div>
-        <div class="game-name">Upgrade</div>
-        <div class="game-desc">Darajani oshirish</div>
-      </div>
-      <div class="game-card" data-game="dice">
-        <div class="game-icon">🎲</div>
-        <div class="game-name">Dice</div>
-        <div class="game-desc">1-6, x6 to'lov</div>
-      </div>
-      <div class="game-card" data-game="battle">
-        <div class="game-icon">⚔️</div>
-        <div class="game-name">UC Battle</div>
-        <div class="game-desc">PvP jang</div>
-      </div>
+      <button class="settings-btn" id="settings-btn">⚙️</button>
     </div>
   </div>
 
-  <div id="game-screen" style="display:none;">
-    <button class="back-btn" id="back-to-lobby">⬅️</button>
-    <div id="game-content"></div>
+  <!-- BANNER -->
+  <div class="banner">
+    <div class="banner-content">
+      <div class="banner-title">⚔️ FREE UC BOT</div>
+      <div class="banner-sub">O'yinlar o'ynab, UC yig'ing va ularni PUBG Mobile hisobingizga yechib oling!</div>
+      <button class="banner-btn" id="daily-bonus-btn">🎁 Kunlik bonus</button>
+    </div>
+    <div class="banner-glow"></div>
   </div>
+
+  <!-- QUICK STATS -->
+  <div class="quick-stats">
+    <div class="stat-card"><div class="stat-value" id="stat-level" style="color:var(--neon-purple);">0</div><div class="stat-label">O'yinlar</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-wins" style="color:var(--neon-cyan);">0</div><div class="stat-label">Yutuq</div></div>
+    <div class="stat-card"><div class="stat-value" id="stat-rank" style="color:var(--neon-gold);">#0</div><div class="stat-label">Reyting</div></div>
+  </div>
+
+  <!-- GAMES SECTION -->
+  <div class="section-title">🎮 O'yinlar <span class="badge">5 ta</span></div>
+  <div class="games-grid">
+    <div class="game-card" data-game="baraban">
+      <div class="glow"></div>
+      <div class="game-icon">🎰</div>
+      <div class="game-name">Baraban</div>
+      <div class="game-desc">0x – 20x gacha</div>
+      <button class="game-play-btn">O'ynash</button>
+    </div>
+    <div class="game-card" data-game="plinko">
+      <div class="glow"></div>
+      <div class="game-icon">🧩</div>
+      <div class="game-name">Plinko</div>
+      <div class="game-desc">0.2x – 10x</div>
+      <button class="game-play-btn">O'ynash</button>
+    </div>
+    <div class="game-card" data-game="upgrade">
+      <div class="glow"></div>
+      <div class="game-icon">⬆️</div>
+      <div class="game-name">Upgrade</div>
+      <div class="game-desc">Risk/ Reward</div>
+      <button class="game-play-btn">O'ynash</button>
+    </div>
+    <div class="game-card" data-game="dice">
+      <div class="glow"></div>
+      <div class="game-icon">🎲</div>
+      <div class="game-name">Dice</div>
+      <div class="game-desc">x6 to'lov</div>
+      <button class="game-play-btn">O'ynash</button>
+    </div>
+    <div class="game-card" data-game="battle">
+      <div class="glow"></div>
+      <div class="game-icon">⚔️</div>
+      <div class="game-name">UC Battle</div>
+      <div class="game-desc">PvP jang</div>
+      <button class="game-play-btn">O'ynash</button>
+    </div>
+  </div>
+
+  <!-- FEATURES SCROLL -->
+  <div class="section-title">⭐ Imkoniyatlar</div>
+  <div class="h-scroll">
+    <div class="h-scroll-item" id="scroll-bonus">
+      <div class="h-scroll-icon">🎁</div>
+      <div class="h-scroll-name">Kunlik Bonus</div>
+      <div class="h-scroll-desc">Har kuni +10 UC</div>
+    </div>
+    <div class="h-scroll-item" id="scroll-referral">
+      <div class="h-scroll-icon">🔗</div>
+      <div class="h-scroll-name">Referal</div>
+      <div class="h-scroll-desc">Do'stingni taklif qil</div>
+    </div>
+    <div class="h-scroll-item" id="scroll-withdraw">
+      <div class="h-scroll-icon">💸</div>
+      <div class="h-scroll-name">UC yechish</div>
+      <div class="h-scroll-desc">660 UC dan boshlab</div>
+    </div>
+    <div class="h-scroll-item" id="scroll-leaderboard">
+      <div class="h-scroll-icon">🏆</div>
+      <div class="h-scroll-name">Reyting</div>
+      <div class="h-scroll-desc">Top 10 o'yinchilar</div>
+    </div>
+    <div class="h-scroll-item" id="scroll-profile">
+      <div class="h-scroll-icon">👤</div>
+      <div class="h-scroll-name">Profil</div>
+      <div class="h-scroll-desc">Mening ma'lumotlarim</div>
+    </div>
+  </div>
+
+  <!-- RECENT WINNERS -->
+  <div class="section-title">🏅 So'nggi g'oliblar</div>
+  <div class="winners-list" id="winners-list">
+    <div class="winner-item">
+      <div class="winner-avatar">👤</div>
+      <div class="winner-info">
+        <div class="winner-name">O'yinchi</div>
+        <div class="winner-meta">Baraban • 2 daqiqa oldin</div>
+      </div>
+      <div class="winner-amount">+250 UC</div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen">
+  <div class="game-screen-header">
+    <button class="game-screen-back" id="game-back-btn">‹</button>
+    <div class="game-screen-title" id="game-screen-title">O'yin</div>
+  </div>
+  <div id="game-content"></div>
 </div>
 
 <div id="toast" class="toast"></div>
