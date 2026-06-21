@@ -21,9 +21,9 @@
                 <label>Xabar matni</label>
                 <textarea id="broadcast-text" rows="6" placeholder="Xabaringizni shu yerga yozing..."></textarea>
             </div>
-            <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-                <input type="checkbox" id="broadcast-channels">
-                <span>Kanallarga ham yuborish</span>
+            <label style="display:flex; align-items:center; gap:10px; margin-bottom:14px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--surface);">
+                <input type="checkbox" id="broadcast-channels" style="accent-color:var(--acid); width:18px; height:18px; cursor:pointer;">
+                <span style="font-size:13px; font-weight:500;">📣 Kanallarga ham yuborish</span>
             </label>
             <button type="button" class="btn btn-primary" onclick="sendBroadcast()" id="send-btn">📤 Yuborish</button>
             <span id="send-status" class="muted mono" style="margin-left: 12px; font-size: 12px;"></span>
