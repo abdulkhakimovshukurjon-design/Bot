@@ -11,7 +11,7 @@ from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from fastapi import FastAPI, Form, Request, status
+from fastapi import FastAPI, File, Form, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -297,24 +297,29 @@ async def broadcast_page(request: Request):
 
 
 @app.post("/api/broadcast/send")
-async def api_send_broadcast(message: str = Form(""), photo: str = Form("")):
+async def api_send_broadcast(message: str = Form(""), photo: UploadFile | None = File(None)):
     """
     Webdan broadcast yuborish — aiogram Bot orqali to'g'ridan-to'g'ri yuboradi.
-    Rasm file_id berilsa, rasm + caption yuboradi, aks holda faqat matn.
+    Rasm fayl sifatida yuklansa, rasm + caption yuboradi, aks holda faqat matn.
     """
     import asyncio
     from aiogram import Bot
+    from aiogram.types import BufferedInputFile
 
     bot = Bot(token=config.BOT_TOKEN)
     user_ids = await users_db.get_all_user_ids(only_active=True)
 
+    photo_bytes = await photo.read() if photo else None
+    photo_name = photo.filename if photo else None
+
     sent, failed = 0, 0
-    preview = message[:100] if message else (photo[:30] + "...")
+    preview = message[:100] if message else f"[rasm: {photo_name or 'noma\'lum'}]"
     try:
         for uid in user_ids:
             try:
-                if photo:
-                    await bot.send_photo(chat_id=uid, photo=photo, caption=message or None)
+                if photo_bytes:
+                    input_file = BufferedInputFile(file=photo_bytes, filename=photo_name or "photo.jpg")
+                    await bot.send_photo(chat_id=uid, photo=input_file, caption=message or None)
                 else:
                     await bot.send_message(uid, message)
                 sent += 1
