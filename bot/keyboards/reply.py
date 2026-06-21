@@ -11,21 +11,9 @@ def main_menu_kb() -> ReplyKeyboardMarkup:
             [KeyboardButton(text="🏆 Top 10"), KeyboardButton(text="🎁 Bonus")],
             [KeyboardButton(text="💎 Premium"), KeyboardButton(text="ℹ️ Axborot olish")],
             [KeyboardButton(text="💸 UC yechib olish"), KeyboardButton(text="📜 UC tarixi")],
-            [KeyboardButton(text="🎮 O'yinlar")],
         ],
         resize_keyboard=True,
     )
-
-def games_menu_kb() -> ReplyKeyboardMarkup:
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🎰 Baraban"), KeyboardButton(text="🧩 Plinko")],
-            [KeyboardButton(text="⬆️ Upgrade"), KeyboardButton(text="⚔️ UC Battle")],
-            [KeyboardButton(text="🎲 Dice"), KeyboardButton(text="⬅️ Orqaga")],
-        ],
-        resize_keyboard=True,
-    )
-
 
 def admin_panel_kb() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
