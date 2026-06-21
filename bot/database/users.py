@@ -4,7 +4,7 @@ Foydalanuvchilar bilan bog'liq barcha ma'lumotlar bazasi amallari.
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from bot.database.connection import get_connection
+from bot.database.connection import execute_insert, get_connection
 
 
 async def get_user(user_id: int) -> Optional[dict[str, Any]]:
@@ -81,12 +81,13 @@ async def withdraw_balance(user_id: int) -> dict[str, int]:
     amount = user["uc_balance"] if user else 0
 
     await conn.execute("UPDATE users SET uc_balance = 0 WHERE user_id = ?", (user_id,))
-    cursor = await conn.execute(
+    new_id = await execute_insert(
+        conn,
         "INSERT INTO withdrawals (user_id, amount, status) VALUES (?, ?, 'pending')",
         (user_id, amount),
     )
     await conn.commit()
-    return {"id": cursor.lastrowid, "amount": amount}
+    return {"id": new_id, "amount": amount}
 
 
 async def get_pending_withdrawals(limit: int = 20) -> list[dict[str, Any]]:

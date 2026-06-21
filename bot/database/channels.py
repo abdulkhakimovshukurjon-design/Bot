@@ -23,14 +23,16 @@ async def remove_channel(chat_id: str) -> bool:
     conn = await get_connection()
     cursor = await conn.execute("DELETE FROM channels WHERE chat_id = ?", (chat_id,))
     await conn.commit()
-    return cursor.rowcount > 0
+    rc = await cursor.get_rowcount()
+    return rc > 0
 
 
 async def remove_channel_by_id(channel_id: int) -> bool:
     conn = await get_connection()
     cursor = await conn.execute("DELETE FROM channels WHERE channel_id = ?", (channel_id,))
     await conn.commit()
-    return cursor.rowcount > 0
+    rc = await cursor.get_rowcount()
+    return rc > 0
 
 
 async def get_all_channels() -> list[dict[str, Any]]:
