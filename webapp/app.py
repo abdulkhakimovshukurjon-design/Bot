@@ -214,10 +214,7 @@ async def api_send_user_message(user_id: int, text: str = Form(...)):
 
 @app.post("/api/users/{user_id}/premium")
 async def api_grant_premium(user_id: int, months: int = Form(...)):
-    try:
-        expires_iso = await users_db.grant_premium(user_id, months, granted_by=None)
-    except ValueError as e:
-        return JSONResponse({"success": False, "error": str(e)}, status_code=400)
+    expires_iso = await users_db.grant_premium(user_id, months, granted_by=None)
 
     await _notify_user(
         user_id,

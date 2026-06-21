@@ -231,7 +231,8 @@ async def grant_premium(user_id: int, months: int, granted_by: int | None = None
     user = await get_user(user_id)
 
     if not user:
-        raise ValueError(f"User {user_id} topilmadi. Avval foydalanuvchini ro'yxatdan o'tkazing.")
+        await create_user(user_id, None)
+        user = await get_user(user_id)
 
     now = datetime.now()
     if user and user["is_premium"] and user["premium_until"]:
