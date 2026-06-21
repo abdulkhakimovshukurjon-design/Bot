@@ -120,7 +120,7 @@ async def init_db(db_path: str = None) -> None:
     global _connection, _is_postgres
 
     import os
-    database_url = os.getenv("DATABASE_URL")
+    database_url = os.getenv("DATABASE_URL") or os.getenv("DATABASE_PUBLIC_URL")
 
     if database_url:
         _is_postgres = True
