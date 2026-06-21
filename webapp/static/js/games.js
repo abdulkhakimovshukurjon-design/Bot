@@ -62,52 +62,48 @@ async function init() {
     initDataStr = tg.initData;
   }
 
-  if (!initDataStr) {
-    document.getElementById("lobby").style.display = "none";
-    const loginDiv = document.createElement("div");
-    loginDiv.id = "login-form";
-    loginDiv.style.textAlign = "center";
-    loginDiv.style.marginTop = "40px";
-    loginDiv.innerHTML = `
-      <h2>🎮 O'yinlar</h2>
-      <p style="color:#888;margin:16px 0;">Telegram WebApp orqali kiring yoki Telegram ID ingizni kiriting:</p>
-      <input type="number" id="uid-input" placeholder="Telegram ID" style="padding:10px;border-radius:8px;border:none;width:200px;font-size:16px;background:#16213e;color:#fff;text-align:center;">
-      <button id="uid-login-btn" class="play-btn" style="max-width:200px;margin:12px auto;">Kirish</button>
-      <p style="color:#666;font-size:12px;margin-top:8px;">ID ni botdagi profil bo'limidan topishingiz mumkin</p>
-    `;
-    document.getElementById("app").appendChild(loginDiv);
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlUserId = urlParams.get("user_id") ? parseInt(urlParams.get("user_id")) : null;
 
-    document.getElementById("uid-login-btn").addEventListener("click", async () => {
-      const uid = parseInt(document.getElementById("uid-input").value);
-      if (!uid) return showToast("ID kiriting", false);
-      try {
-        const res = await API.init({ user_id: uid });
-        if (res.ok) {
-          user = res.user;
-          balance = res.balance;
-          updateBalanceUI();
-          loginDiv.remove();
-          document.getElementById("lobby").style.display = "block";
-        } else {
-          showToast(res.error || "Xatolik", false);
-        }
-      } catch (e) { showToast("Server xatosi", false); }
-    });
-    return;
-  }
-
-  try {
-    const res = await API.init({ initData: initDataStr, user_id: null });
+  if (initDataStr) {
+    const res = await API.init({ initData: initDataStr });
     if (res.ok) {
-      user = res.user;
-      balance = res.balance;
-      updateBalanceUI();
-    } else {
-      showToast("Xatolik: " + (res.error || "Avtorizatsiyadan o'tilmadi"), false);
+      user = res.user; balance = res.balance; updateBalanceUI(); return;
     }
-  } catch (e) {
-    showToast("Server bilan bog'lanib bo'lmadi", false);
   }
+
+  if (urlUserId) {
+    const res = await API.init({ user_id: urlUserId });
+    if (res.ok) {
+      user = res.user; balance = res.balance; updateBalanceUI(); return;
+    }
+  }
+
+  document.getElementById("lobby").style.display = "none";
+  const loginDiv = document.createElement("div");
+  loginDiv.id = "login-form";
+  loginDiv.style.textAlign = "center";
+  loginDiv.style.marginTop = "40px";
+  loginDiv.innerHTML = `
+    <h2>🎮 O'yinlar</h2>
+    <p style="color:#888;margin:16px 0;">Telegram ID ingizni kiriting:</p>
+    <input type="number" id="uid-input" placeholder="Telegram ID" style="padding:10px;border-radius:8px;border:none;width:200px;font-size:16px;background:#16213e;color:#fff;text-align:center;">
+    <button id="uid-login-btn" class="play-btn" style="max-width:200px;margin:12px auto;">Kirish</button>
+    <p style="color:#666;font-size:12px;margin-top:8px;">ID ni botdagi profil bo'limidan topasiz</p>
+  `;
+  document.getElementById("app").appendChild(loginDiv);
+
+  document.getElementById("uid-login-btn").addEventListener("click", async () => {
+    const uid = parseInt(document.getElementById("uid-input").value);
+    if (!uid) return showToast("ID kiriting", false);
+    const res = await API.init({ user_id: uid });
+    if (res.ok) {
+      user = res.user; balance = res.balance; updateBalanceUI();
+      loginDiv.remove(); document.getElementById("lobby").style.display = "block";
+    } else {
+      showToast(res.error || "Xatolik", false);
+    }
+  });
 }
 
 // Lobby
